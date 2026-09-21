@@ -1,0 +1,119 @@
+{
+ "schema": 1,
+ "runs": [
+  {
+   "chain": "arbitrum-one",
+   "run_id": "2026-09-14",
+   "path": "runs/arbitrum-one/2026-09-14",
+   "kind": "readiness",
+   "status": "current",
+   "verdict": "REVIEW",
+   "env": "prod",
+   "window": {
+    "from_block": 505098473,
+    "to_block": 505365109
+   },
+   "tool": {
+    "name": "cow-backtester",
+    "version": "0.11.0"
+   },
+   "engine": {
+    "build_sha": "3a36e59e5"
+   },
+   "warns": [
+    "bid coverage",
+    "competitive vs winners",
+    "prices look plausible"
+   ],
+   "fails": [],
+   "report_sha256": "0f57032f1d2cb97b63e54080e2f2604ad585805137feabf230d17e34a314a1e9",
+   "recorded_at": "2026-09-21T09:26:52Z"
+  },
+  {
+   "chain": "base",
+   "run_id": "2026-08-22",
+   "path": "runs/base/2026-08-22",
+   "kind": "readiness",
+   "status": "superseded",
+   "verdict": "REVIEW",
+   "env": "prod",
+   "window": {
+    "from_block": 50314011,
+    "to_block": 50316011
+   },
+   "tool": {
+    "name": "cow-backtester",
+    "version": "0.10.0"
+   },
+   "engine": {
+    "build_sha": "bbefaf759"
+   },
+   "warns": [
+    "competitive vs winners",
+    "prices look plausible"
+   ],
+   "fails": [],
+   "report_sha256": "5084859d5c00df4eda417716bc817e9a753c63c80cde1b1c2c4c0711f8547b92",
+   "recorded_at": "2026-09-21T09:26:52Z"
+  },
+  {
+   "chain": "base",
+   "run_id": "2026-09-14",
+   "path": "runs/base/2026-09-14",
+   "kind": "readiness",
+   "status": "current",
+   "verdict": "REVIEW",
+   "env": "prod",
+   "window": {
+    "from_block": 51300926,
+    "to_block": 51336483
+   },
+   "tool": {
+    "name": "cow-backtester",
+    "version": "0.11.0"
+   },
+   "engine": {
+    "build_sha": "e777ab394"
+   },
+   "warns": [
+    "bid coverage",
+    "latency headroom",
+    "prices look plausible"
+   ],
+   "fails": [],
+   "report_sha256": "a73babcbb114eb0756e4992ea5d9df0f13b884309f1e8a48e6422dc033ebb70e",
+   "recorded_at": "2026-09-21T09:26:52Z"
+  },
+  {
+   "chain": "bnb",
+   "run_id": "2026-09-14",
+   "path": "runs/bnb/2026-09-14",
+   "kind": "readiness",
+   "status": "current",
+   "verdict": "REVIEW",
+   "env": "prod",
+   "window": {
+    "from_block": 121850336,
+    "to_block": 122000731
+   },
+   "tool": {
+    "name": "cow-backtester",
+    "version": "0.11.0"
+   },
+   "engine": {
+    "build_sha": "3a36e59e5"
+   },
+   "warns": [
+    "bid coverage",
+    "latency headroom",
+    "competitive vs winners",
+    "prices look plausible",
+    "scan coverage",
+    "field coverage"
+   ],
+   "fails": [],
+   "report_sha256": "60828bbd2734934f81e2bcd87ed6000887d9164864718fdb37ead77ac371c2cf",
+   "recorded_at": "2026-09-21T09:26:52Z"
+  }
+ ]
+}

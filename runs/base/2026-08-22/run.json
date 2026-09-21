@@ -1,0 +1,100 @@
+{
+ "schema": 1,
+ "kind": "readiness",
+ "solver": "kaisersolver",
+ "chain": "base",
+ "run_id": "2026-08-22",
+ "status": "superseded",
+ "superseded_by": "base/2026-09-14",
+ "env": "prod",
+ "verdict": "REVIEW",
+ "window": {
+  "from_block": 50314011,
+  "to_block": 50316011
+ },
+ "checks": [
+  {
+   "level": "pass",
+   "label": "reached auctions",
+   "detail": "25 auctions attempted"
+  },
+  {
+   "level": "pass",
+   "label": "no transport errors",
+   "detail": "0 errors"
+  },
+  {
+   "level": "pass",
+   "label": "answers reliably",
+   "detail": "100% returned a parseable response (incl. legitimate empty solutions)"
+  },
+  {
+   "level": "pass",
+   "label": "bid coverage",
+   "detail": "64% of answered auctions carried >=1 solution"
+  },
+  {
+   "level": "pass",
+   "label": "inside the deadline",
+   "detail": "0 past deadline"
+  },
+  {
+   "level": "pass",
+   "label": "latency headroom",
+   "detail": "p95 1548 ms of a 20000 ms budget"
+  },
+  {
+   "level": "pass",
+   "label": "solutions are valid",
+   "detail": "100% of bid auctions had >=1 valid solution"
+  },
+  {
+   "level": "warn",
+   "label": "competitive vs winners",
+   "detail": "43% of winner surplus captured (coverage-adjusted; 43% conditional on answering)"
+  },
+  {
+   "level": "warn",
+   "label": "prices look plausible",
+   "detail": "1 auction(s) flagged implausible_surplus"
+  },
+  {
+   "level": "pass",
+   "label": "field coverage",
+   "detail": "75 settlements, 71 auctions formed, 0 unattributed (0% of field excluded)"
+  }
+ ],
+ "tool": {
+  "name": "cow-backtester",
+  "version": "0.10.0"
+ },
+ "engine": {
+  "build_sha": "bbefaf759"
+ },
+ "first_published_commit": "4132490",
+ "superseded_banner_commit": "32e2811",
+ "sample_cap": 25,
+ "budget": {
+  "seconds": 20.0,
+  "source": "assumed"
+ },
+ "provenance": {
+  "repository": "KaiserSolver/cow-backtester",
+  "commit": "e7b3b73",
+  "path": "docs/readiness/kaisersolver-base-2026-08-22.md"
+ },
+ "notes": [
+  "Measured against the tool's then-assumed 20 s budget on a 25-auction cap; superseded by the 0.11.0 method. Kept as history, not regenerated.",
+  "The rows behind this run were not retained; no evidence fingerprints. The report's relative CHANGELOG link pointed at the tool repository's CHANGELOG."
+ ],
+ "links": {
+  "changelog": "https://github.com/KaiserSolver/cow-backtester/blob/main/CHANGELOG.md#0110--2026-09-14"
+ },
+ "evidence": [],
+ "report": {
+  "path": "report.md",
+  "sha256": "5084859d5c00df4eda417716bc817e9a753c63c80cde1b1c2c4c0711f8547b92",
+  "bytes": 4393
+ },
+ "recorded_at": "2026-09-21T09:26:52Z"
+}

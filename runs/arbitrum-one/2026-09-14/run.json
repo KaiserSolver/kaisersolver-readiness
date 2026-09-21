@@ -1,0 +1,178 @@
+{
+ "schema": 1,
+ "kind": "readiness",
+ "solver": "kaisersolver",
+ "chain": "arbitrum-one",
+ "run_id": "2026-09-14",
+ "status": "current",
+ "env": "prod",
+ "verdict": "REVIEW",
+ "window": {
+  "from_block": 505098473,
+  "to_block": 505365109
+ },
+ "budget": {
+  "seconds": 4.84,
+  "source": "observed"
+ },
+ "checks": [
+  {
+   "level": "pass",
+   "label": "reached auctions",
+   "detail": "1030 auctions attempted"
+  },
+  {
+   "level": "pass",
+   "label": "no transport errors",
+   "detail": "0 transport errors"
+  },
+  {
+   "level": "pass",
+   "label": "answers reliably",
+   "detail": "100% returned a parseable response inside the budget (incl. legitimate empty solutions)"
+  },
+  {
+   "level": "warn",
+   "label": "bid coverage",
+   "detail": "48% of answered auctions carried >=1 solution"
+  },
+  {
+   "level": "pass",
+   "label": "inside the deadline",
+   "detail": "0 deadline misses"
+  },
+  {
+   "level": "pass",
+   "label": "latency headroom",
+   "detail": "p95 1979 ms of a 4840 ms budget (observed); PASS <= 0.5x, WARN <= 1x"
+  },
+  {
+   "level": "pass",
+   "label": "solutions are valid",
+   "detail": "100% of bid auctions had >=1 valid solution [feasibility+eligibility+udcp+fairness; fairness_filtered 13, zero_surplus 0, udcp 1443 checked / 0 violations]"
+  },
+  {
+   "level": "warn",
+   "label": "competitive vs winners",
+   "detail": "36% of winner surplus captured (coverage-adjusted; 36% conditional on answering; basis mix {'exact_uniform': 912, 'wrapper_lower_bound': 108, 'mixed': 10})"
+  },
+  {
+   "level": "warn",
+   "label": "prices look plausible",
+   "detail": "8 auction(s) flagged implausible_surplus"
+  },
+  {
+   "level": "pass",
+   "label": "scan coverage",
+   "detail": "every block in the window was scanned"
+  },
+  {
+   "level": "pass",
+   "label": "field coverage",
+   "detail": "1094 settlements, 1030 auctions formed, 30 excluded (3% of field; top reasons [('tx_uid_mismatch', 12), ('body_uid_mismatch', 11), ('wrapper_unattributed', 7)])"
+  }
+ ],
+ "tool": {
+  "name": "cow-backtester",
+  "version": "0.11.0"
+ },
+ "engine": {
+  "build_sha": "3a36e59e5"
+ },
+ "figures": {
+  "lo": 505098473,
+  "hi": 505365109,
+  "attempted": 1030,
+  "replayed": 1030,
+  "returned": 491,
+  "valid": 490,
+  "transport": 0,
+  "deadline_miss": 0,
+  "p50": 793,
+  "p95": 1979,
+  "budget": 4.84,
+  "valid_pct": 99.79633401221996,
+  "fair_eval": 491,
+  "fair_filtered": 13,
+  "capture": 36.363570805623525,
+  "capture_x": 36.363570805623525,
+  "arte": [],
+  "own_wins": 24,
+  "perbid": 0.9792143061781247,
+  "n_perbid": 482,
+  "flagged": 8,
+  "udcp": 1443,
+  "udcp_v": 0,
+  "verdict": "REVIEW",
+  "warns": [
+   "bid coverage",
+   "competitive vs winners",
+   "prices look plausible"
+  ],
+  "span": [
+   "2026-09-14T14:05:14Z",
+   "2026-09-15T08:50:16Z"
+  ],
+  "span_h": 18.750555555555554,
+  "rate": 54.93,
+  "found": 1094,
+  "excluded": 30,
+  "skip": {
+   "wrapper_unattributed": 7,
+   "tx_uid_mismatch": 12,
+   "body_uid_mismatch": 11
+  },
+  "unscanned": 0,
+  "lag_med_min": 0.6182605187098186
+ },
+ "first_published_commit": "d16ef14",
+ "generator": {
+  "description": "private script over the tool's --json-out rows (all files per chain, one row per auction id, restricted to the fixed window), re-running the tool's own readiness_report() over the cumulative counters",
+  "sha256": "4d27c6b34b91cbbe55081f07820dd620b84d2428aa3e4ca202da04da67a83269"
+ },
+ "body_archive_manifest": {
+  "sha256": "0c809a600e676f998a0a7bf550ef810b87889e72b6ccc1845851dcb00f2cfa89",
+  "lines": 9650,
+  "path": "archive/bodies-0.11/manifest.jsonl"
+ },
+ "provenance": {
+  "repository": "KaiserSolver/cow-backtester",
+  "commit": "e7b3b73",
+  "path": "docs/readiness/kaisersolver-arbitrum-one-2026-09-14.md"
+ },
+ "notes": [
+  "Watch run 2026-09-14 → 15 over the fixed block window cited in the forum post; report regenerated 2026-09-15 from every row of the run (commit e7b3b73); the 2026-09-14 21:45Z snapshot (commit d16ef14) covered the first part of the window."
+ ],
+ "links": {
+  "forum": "https://forum.cow.fi/t/measuring-solver-readiness-before-production-a-v0-proposal/3572"
+ },
+ "evidence": [
+  {
+   "path": "runs/arbitrum-one/2026-09-14.jsonl",
+   "kind": "rows",
+   "sha256": "e5cfa06430ffe767c9dccfaa9b40c2631f9fa97df53fe253408754a6918778ac",
+   "bytes": 68534,
+   "lines": 44
+  },
+  {
+   "path": "runs/arbitrum-one/2026-09-14T143134Z.jsonl",
+   "kind": "rows",
+   "sha256": "1f580d504be3d2fcf5f657eed2526a511494a783343717e88878e7b53fbcd608",
+   "bytes": 3389230,
+   "lines": 2135
+  },
+  {
+   "path": "archive/bodies-0.11/manifest.jsonl",
+   "kind": "body-archive-manifest",
+   "sha256": "0c809a600e676f998a0a7bf550ef810b87889e72b6ccc1845851dcb00f2cfa89",
+   "bytes": 2052103,
+   "lines": 9650
+  }
+ ],
+ "report": {
+  "path": "report.md",
+  "sha256": "0f57032f1d2cb97b63e54080e2f2604ad585805137feabf230d17e34a314a1e9",
+  "bytes": 8284
+ },
+ "recorded_at": "2026-09-21T09:26:52Z"
+}

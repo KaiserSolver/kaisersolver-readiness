@@ -1,0 +1,12 @@
+# evidence files this run was built from; paths are relative to an evidence root
+# (they are not in this repository). Check with: sha256sum -c EVIDENCE.sha256
+# runs/bnb/2026-09-14.jsonl: 23173 bytes, 12 lines, rows
+df684fae4952f2fd5214fef457af511c7fafd9638396060df7bb1e720f605019  runs/bnb/2026-09-14.jsonl
+# runs/bnb/2026-09-14T141736Z.jsonl: 8427068 bytes, 5733 lines, rows
+536920bc599c4d710d6818bf14dfc8307926c94a814b6ded8c58dd7436817afa  runs/bnb/2026-09-14T141736Z.jsonl
+# runs/bnb/2026-09-15T063444Z.jsonl: 0 bytes, 0 lines, rows
+e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855  runs/bnb/2026-09-15T063444Z.jsonl
+# runs/bnb/2026-09-15T063517Z.jsonl: 1905781 bytes, 1307 lines, rows
+65b6d007820b0ae83e26f6d7bf91db0f19049679859bc9d70d7bde1c50781bbe  runs/bnb/2026-09-15T063517Z.jsonl
+# archive/bodies-0.11/manifest.jsonl: 2052103 bytes, 9650 lines, body-archive-manifest
+0c809a600e676f998a0a7bf550ef810b87889e72b6ccc1845851dcb00f2cfa89  archive/bodies-0.11/manifest.jsonl
