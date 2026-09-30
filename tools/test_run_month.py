@@ -150,6 +150,8 @@ def test_full_run_with_restart_and_cut_short_last_cycle(world: dict[str, Path], 
     assert shell.watches[0][shell.watches[0].index("--blocks") + 1] == "2000"
     assert shell.watches[1][shell.watches[1].index("--blocks") + 1] == "500"  # head - last_to, no re-scan
     assert "--archive-bodies" in shell.watches[0]
+    cache_dir = Path(shell.watches[0][shell.watches[0].index("--cache-dir") + 1])
+    assert cache_dir == world["evidence"] / ".cowbt-cache"  # never inside the record checkout
     archive = Path(shell.watches[0][shell.watches[0].index("--archive-bodies") + 1])
     assert archive.name == "2026-10-01-arbitrum-one"  # one archive per run and chain
     run_dir = world["record"] / "runs" / "arbitrum-one" / "2026-10-01"

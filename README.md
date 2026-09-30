@@ -124,6 +124,20 @@ that prints the engine build sha); RPC URLs come from the environment variable i
 committed. A restarted watch may replay a few auctions twice; the report keeps the first replay and
 says how many blocks were scanned twice.
 
+**End-to-end test.** `tools/e2e/run_e2e.py` runs the real `run_month.py`, the real `cow-backtester`
+CLI doing a real watch over HTTP, the real `add_run.py` / `verify.py` and a real `git push` — against
+a stand-in world: `tools/e2e/mock_world.py` serves the chain's JSON-RPC, the S3 bucket and the CoW API
+on one local port and advances 4 blocks/s in wall-clock time; the tool's own `mock_solver.py` is the
+engine; a `gh` shim logs instead of reaching GitHub; a bare repository is the remote. It needs the
+tool checkout (`COW_BACKTESTER_SRC`) and takes as long as `--duration` (default 150 s):
+
+```
+COW_BACKTESTER_SRC=~/cow-backtester python3 tools/e2e/run_e2e.py --duration 150s
+```
+
+It passes only when the pushed branch, cloned back from the bare remote, verifies and this run's
+`EVIDENCE.sha256` checks out against the evidence on disk.
+
 Reports here are signal, not guarantee: a replay quotes live liquidity against archived auctions.
 Each report says so in its own words.
 

@@ -276,7 +276,9 @@ def tool_command(plan: RunPlan, out_file: Path, blocks: int) -> list[str]:
         "cow-backtester", "--chain", c.slug, "--env", "prod", "--readiness", "--compete",
         "--watch", str(c.watch_seconds), "--blocks", str(blocks), "--rpc-url", plan.rpc_url,
         "--solver-url", c.solver_url, "--solver-name", SOLVER,
-        "--json-out", str(out_file), "--archive-bodies", str(plan.archive_dir), "--quiet",
+        "--json-out", str(out_file), "--archive-bodies", str(plan.archive_dir),
+        "--cache-dir", str(plan.cfg.evidence_root / ".cowbt-cache"),  # never inside the record checkout
+        "--quiet",
     ]  # fmt: skip
 
 

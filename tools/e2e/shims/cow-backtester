@@ -1,0 +1,22 @@
+#!/usr/bin/env python3
+"""The real cow-backtester CLI, pointed at the mock world.
+
+The tool has no flag for the S3 bucket or the CoW API host, so this shim rebinds the two module
+constants to E2E_MOCK_URL and then hands argv to the tool's own `cli()`. Everything else — argument
+parsing, the RPC client, log enumeration, body fetching, the /solve wire path, scoring, the
+readiness screen, the JSONL writer — is the tool's unmodified code. The e2e harness puts this
+directory first on PATH so `run_month.py` launches it as `cow-backtester`.
+"""
+
+import os
+import sys
+
+from cow_backtester import backtest
+
+mock = os.environ.get("E2E_MOCK_URL")
+if not mock:
+    raise SystemExit("cow-backtester shim: E2E_MOCK_URL is not set")
+backtest.BUCKET = mock
+backtest.COW_API = mock
+sys.argv[0] = "cow-backtester"
+backtest.cli()
