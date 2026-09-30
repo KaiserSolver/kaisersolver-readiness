@@ -21,4 +21,9 @@ jobs:
       - run: sha256sum -c SHA256SUMS
       - run: for f in runs/*/*/SHA256SUMS; do (cd "$(dirname "$f")" && sha256sum -c SHA256SUMS); done
       - run: python3 tools/verify.py
-      - run: pip install pytest && python3 -m pytest -q tools
+      # The build_report / run_month tests need the tool the fixtures were made with
+      # (tools/fixtures/monthly/fixture.json → tool_version; a test pins them together).
+      # 0.11.3 is not on PyPI yet, hence the commit pin; switch to cow-backtester==0.11.3 on release.
+      - run: pip install pytest ruff "cow-backtester @ git+https://github.com/KaiserSolver/cow-backtester@bd359bb"
+      - run: ruff check tools
+      - run: python3 -m pytest -q tools

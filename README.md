@@ -36,7 +36,9 @@ runs/<chain>/<run-id>/
   EVIDENCE.sha256   sha256 / size / line count of the evidence files (not in this repository)
 index.json          every run's summary, regenerated from the run.json files
 SHA256SUMS          sha256 of every file in the repository
-tools/              add_run.py (record a run), verify.py (check the record), tests
+tools/              add_run.py (record a run), verify.py (check the record), regenerate.py (rebuild the manifests),
+                    build_report.py (rows → report.md + figures), run_month.py (the monthly run, end to end),
+                    monthly.json (its config), make_fixture.py + fixtures/ (genuine tool output for the tests), tests
 ```
 
 A run id is the UTC date the run started, with a suffix when a chain has more than one run that day.
@@ -76,14 +78,51 @@ in `run.json` here.
 
 ## Recording a run
 
-1. Run `cow-backtester --readiness` (with `--json-out` and `--archive-bodies`) and write the public
-   report from its rows.
-2. `tools/add_run.py --chain <chain> --run-id <YYYY-MM-DD> --report <report.md> --evidence-root <dir> --evidence <rel>[:kind] ...`
+1. Run `cow-backtester --readiness --compete --watch 60` with `--json-out` and `--archive-bodies`, then
+   write the public report from its rows:
+   `tools/build_report.py --chain <chain> --from-block <lo> --to-block <hi> --rows <file>... --compete --solver-url <url> --engine-sha <sha> --manifest <archive>/manifest.jsonl --own-address <0x..> --out-dir build/<chain>/<run-id>`
+   reads every `--json-out` file of the run (one row per auction id, the first replay kept, restricted
+   to the block window), rebuilds the counters the tool accrues and re-runs the tool's own
+   `readiness_report()` over them, and writes `report.md`, `figures.json`, `meta.json` and
+   `readiness.json`. The verdict and the screen are the tool's; the prose around them is filled from
+   the same numbers (`--bottom-line` replaces the one editorial sentence).
+2. `tools/add_run.py --chain <chain> --run-id <YYYY-MM-DD> --report <report.md> --evidence-root <dir> --evidence <rel>[:kind] ... --figures build/.../figures.json --meta build/.../meta.json`
    copies the report in, fingerprints the evidence, writes `run.json` + `SHA256SUMS` +
    `EVIDENCE.sha256`, and regenerates `index.json`, the table above and the root `SHA256SUMS`.
    Verdict, window, checks, budget, tool and engine versions are parsed from the report's readiness
-   screen; `--figures` attaches the generator's figures and `--meta` merges anything else.
+   screen; `--figures` attaches the generator's figures and `--meta` merges anything else (the
+   `generator` block names `tools/build_report.py`, its sha256 and the commit it ran from).
 3. `python3 tools/verify.py --evidence-root <dir>` then commit.
+
+A commit that only changes `tools/` has no run to add; `python3 tools/regenerate.py` rebuilds the root
+`SHA256SUMS` (and `index.json` + the table) so `verify.py` passes.
+
+## Monthly runs
+
+From October 2026 a report per chain is published every month. `tools/run_month.py` does the whole
+thing on the engine host — one ~20 h `--readiness --watch 60 --compete` run per chain starting
+00:00 UTC on the 1st, reported over its own block window (the same shape as the 2026-09-14 reports):
+
+```
+tools/run_month.py --chain base --dry-run     # everything but git/gh; prints the commands it would run
+tools/run_month.py --chain base               # cron: 0 0 1 * *  (one line per chain, staggered by a minute)
+tools/run_month.py --chain base --skip-run --run-id 2026-10-01   # rebuild from evidence already on disk
+```
+
+It runs the tool until the deadline (a clean SIGINT stop; exit 130 means the last cycle was cut short
+and is left out of the window), relaunching on a crash so each launch is its own evidence file
+(`runs/<chain>/<start>T<time>Z.jsonl`) that scans from where the previous one stopped; builds the
+report with `build_report.py`; records it with `add_run.py`; verifies; then commits on
+`readiness/<chain>-<run-id>`, pushes and opens a pull request when `gh` is authenticated, otherwise
+prints the exact commands. The PR is the review step: edit the bottom line if you want, re-run
+`add_run.py --force` so the checksums follow, merge. Every archive is per run and chain
+(`archive/bodies-<ver>/<run-id>-<chain>/`), because a shared manifest would change under the earlier
+runs' fingerprints.
+
+`tools/monthly.json` holds the per-chain settings (solver URL, our settlement addresses, the command
+that prints the engine build sha); RPC URLs come from the environment variable it names and are never
+committed. A restarted watch may replay a few auctions twice; the report keeps the first replay and
+says how many blocks were scanned twice.
 
 Reports here are signal, not guarantee: a replay quotes live liquidity against archived auctions.
 Each report says so in its own words.
