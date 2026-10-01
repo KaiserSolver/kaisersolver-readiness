@@ -144,7 +144,9 @@ gap, so launches overlap (disclosed in the report) instead of leaving blocks uns
 detected afterwards. Running out of restarts or disk after at least one cycle builds a partial run.
 What happened is in `runs/<chain>/<run-id>.plan.json` beside the evidence, which `--skip-run` reads;
 the output of every launch is in `logs/<chain>/` under the evidence root. SIGINT or SIGTERM to the
-runner stops the tool and exits 130 with the state written.
+runner stops the tool and exits 130 with the state written; that stop is remembered, so a later
+`--skip-run` still drops the cut-short cycle and refuses to publish it. `--skip-run` also refuses a
+launch that logged archive write errors (unless `--force`) and keeps the recorded engine builds.
 
 **Recording and publishing.** The record is written in a fresh `git worktree` cut from `origin/main`
 under the build root, so the checkout the runner lives in is never switched, dirtied or stacked
@@ -161,14 +163,17 @@ follow, merge. Every archive is per run and chain (`archive/bodies-<ver>/<run-id
 a shared manifest would change under the earlier runs' fingerprints.
 
 **Months that are not published.** Only a run that passes the gate and is merged enters the record. A
-refused, partial or thin (fewer than 500 attempted auctions) run is recorded locally with the reason in
-its `run.json` notes and is not published unless the owner decides to; a month with no run here was
+refused or partial run is recorded locally with the reason in its `run.json` notes and is not
+published unless the owner decides to (a thin month is not gated; the owner judges it from the
+attempted-auction count); a month with no run here was
 not published, not hidden. A hand-edited bottom line is marked `edited` in `run.json`.
 
 `engine_sha_cmd` is an argv list run without a shell, on the host, and is read only from the
 git-ignored overlay; as root the runner wants `--allow-root` before it runs it. `--start` must carry a
 timezone. A restarted watch may replay a few auctions twice; the report keeps the first replay and
-says how many blocks were scanned twice.
+says how many blocks were scanned twice. The `settlements_found` and `auctions_formed` counters
+come from the tool's own per-cycle figures and include those overlapping blocks; they are kept
+equal to the tool's so the report matches its output.
 
 **End-to-end test.** `tools/e2e/run_e2e.py` runs the real `run_month.py`, the real `cow-backtester`
 CLI doing a real watch over HTTP, the real `add_run.py` / `verify.py` and a real publish — against

@@ -392,6 +392,7 @@ class Launch:
     started_ts: float = 0.0
     ended_ts: float = 0.0
     metas: int = 0
+    archive_errors: int = 0
 
 
 @dataclass
@@ -662,6 +663,12 @@ def save_state(plan: RunPlan) -> None:
     tmp.replace(plan.state_path)
 
 
+def stop_text(reason: str | None) -> str:
+    if reason == "runner signal":
+        return "runner stopped by a signal"
+    return f"stopped early: {reason}"
+
+
 def load_state(plan: RunPlan) -> bool:
     try:
         s = json.loads(plan.state_path.read_text())
@@ -670,6 +677,10 @@ def load_state(plan: RunPlan) -> bool:
         plan.cut_short = bool(s.get("cut_short"))
         plan.partial_reason = s.get("partial_reason")
         plan.engine_shas = list(s.get("engine_shas") or [])
+        for launch in plan.launches:  # a stop the state did not get to record still shows in the launch
+            if launch.signalled and launch.stop_reason not in (None, "deadline"):
+                plan.cut_short = plan.cut_short or launch.metas > 0
+                plan.partial_reason = plan.partial_reason or stop_text(launch.stop_reason)
     except (OSError, ValueError, KeyError, TypeError):
         return False
     plan.state_loaded = True
@@ -710,7 +721,7 @@ def run_watch(plan: RunPlan, shell: Shell) -> None:
         scanner.poll()
         launch = Launch(
             out_file, res.returncode, res.signalled, res.stop_reason, res.escalation, sha, started, shell.now(),
-            count_metas([out_file]) if out_file.exists() else 0,
+            count_metas([out_file]) if out_file.exists() else 0, scanner.errors,
         )  # fmt: skip
         plan.launches.append(launch)
         print(json.dumps({"stage": "run", "launch": len(plan.launches), "file": out_file.name, "exit": res.returncode,
@@ -723,6 +734,9 @@ def run_watch(plan: RunPlan, shell: Shell) -> None:
                 f"(see {log_path.name} under {plan.logs_dir}; evidence kept)"
             )
         if res.stop_reason == "runner signal":
+            plan.cut_short = launch.metas > 0
+            plan.partial_reason = stop_text(res.stop_reason)
+            save_state(plan)
             raise SystemExit(EXIT_INTERRUPTED)
         if res.returncode == EXIT_USAGE and not res.signalled:
             raise SystemExit(f"cow-backtester refused the arguments (exit 2); see {log_path}")
@@ -730,7 +744,7 @@ def run_watch(plan: RunPlan, shell: Shell) -> None:
             # a stop, ours or the operator's: whatever the exit code, the cycle in flight was cut short
             plan.cut_short = launch.metas > 0
             if res.stop_reason not in (None, "deadline"):
-                plan.partial_reason = f"stopped early: {res.stop_reason}"
+                plan.partial_reason = stop_text(res.stop_reason)
             break
         failures = 0 if launch.metas else failures + 1
         if failures > plan.cfg.max_restarts or shell.monotonic() + plan.cfg.restart_backoff_seconds >= mono_deadline:
@@ -1093,12 +1107,22 @@ def settle_engine_sha(plan: RunPlan, shell: Shell) -> None:
         plan.engine_sha = next((s for s in plan.engine_shas if s), "")  # the build the run was made against
         return
     plan.engine_sha = resolve_engine_sha(plan.chain, plan.engine_override, shell, plan.allow_root)
-    plan.engine_shas = [plan.engine_sha]
+    if not (plan.skip_run and plan.engine_shas):  # a rebuild keeps the recorded history of engine builds
+        plan.engine_shas = [plan.engine_sha]
 
 
 def run(plan: RunPlan, shell: Shell) -> int:
     if plan.skip_run:
         load_state(plan)
+        bad = [
+            launch.file.name for launch in plan.launches
+            if launch.archive_errors or launch.stop_reason == "archive write errors"
+        ]  # fmt: skip
+        if bad and not plan.force:
+            raise SystemExit(
+                f"launch(es) {', '.join(bad)} logged archive write errors; the body archive is incomplete, "
+                "nothing built (--force to rebuild anyway)"
+            )
     missing = missing_host_settings(plan)
     if missing:
         msg = "host settings missing (see tools/monthly.local.example.json):\n  " + "\n  ".join(missing)

@@ -382,6 +382,32 @@ def test_runner_signal_persists_state_and_exits_130(world: dict[str, Path]) -> N
     assert e.value.code == 130 and state_file(world).exists()
 
 
+def test_runner_signal_is_remembered_and_skip_run_does_not_launder_it(world: dict[str, Path]) -> None:
+    shell = shell_for(world, [Step(FILE2, 130, signalled=True, stop_reason="runner signal")])
+    with pytest.raises(SystemExit) as e:
+        run_month.main(argv(world), shell=shell)
+    assert e.value.code == 130
+    state = json.loads(state_file(world).read_text())
+    assert state["cut_short"] is True and "signal" in state["partial_reason"]
+    state["cut_short"], state["partial_reason"] = False, None  # an older state file that never recorded it
+    state_file(world).write_text(json.dumps(state))
+    again = shell_for(world, [])
+    assert run_month.main(argv(world, "--skip-run", "--dry-run", "--run-id", "2026-10-01"), shell=again) == run_month.EXIT_GATE
+    assert json.loads((build_dir(world) / "window.json").read_text())["last_cycle_dropped"] is True
+
+
+def test_skip_run_keeps_the_engine_history_even_with_an_engine_sha(world: dict[str, Path]) -> None:
+    shell = shell_for(world, [Step(FILE1, 0, signalled=True, stop_reason="deadline")], engine_shas=["abc1234", "def5678"])
+    run_month.main(argv(world, "--dry-run"), shell=shell)
+    state = json.loads(state_file(world).read_text())
+    state["engine_shas"] = ["abc1234", "def5678"]  # the build changed during the recorded run
+    state_file(world).write_text(json.dumps(state))
+    again = shell_for(world, [])
+    extra = ("--skip-run", "--dry-run", "--run-id", "2026-10-01", "--engine-sha", "feedbee")
+    code = run_month.main(argv(world, *extra), shell=again)
+    assert code == run_month.EXIT_GATE  # the recorded engine change is still a gate reason
+
+
 def test_naive_start_is_rejected(world: dict[str, Path]) -> None:
     bad = [a if a != "2026-10-01T00:00:00Z" else "2026-10-01T00:00:00" for a in argv(world)]
     with pytest.raises(SystemExit, match="no timezone"):
@@ -546,6 +572,16 @@ def test_archive_write_errors_fail_the_run(world: dict[str, Path]) -> None:
     with pytest.raises(SystemExit, match="2 archive write error"):
         run_month.main(argv(world), shell=shell)
     assert shell.writes() == []  # nothing was built or recorded
+
+
+def test_skip_run_refuses_a_launch_with_archive_write_errors(world: dict[str, Path]) -> None:
+    log = "  ⚠ archive writes failed: 3 (see stderr)\n"
+    with pytest.raises(SystemExit, match="archive write error"):
+        run_month.main(argv(world), shell=shell_for(world, [Step(FILE1, 130, log=log)]))
+    again = shell_for(world, [])
+    with pytest.raises(SystemExit, match="incomplete"):
+        run_month.main(argv(world, "--skip-run", "--dry-run", "--run-id", "2026-10-01"), shell=again)
+    assert again.writes() == []
 
 
 def test_cache_is_off_unless_a_directory_is_configured(world: dict[str, Path]) -> None:
