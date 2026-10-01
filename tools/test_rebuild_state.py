@@ -32,6 +32,17 @@ def rebuilt(files: list[Path], window: list[int]) -> dict[str, Any]:
     return rebuild_state.build_state(windowed.rows, cycles, w, SOLVER, "ETH").to_dict()
 
 
+def test_validto_clamped_orders_are_summed_over_attempted_rows() -> None:
+    read = rows.read_jsonl([FILE1])
+    w = rows.Window(*PARAMS["window_file1"])
+    windowed = rows.dedupe_in_window(read.rows, w)
+    cycles = rows.select_cycles(read.metas, w)
+    marked = [dict(r) for r in windowed.rows]
+    marked[0]["validto_clamped"], marked[1]["validto_clamped"] = 3, 2
+    agg = rebuild_state.build_state(marked, cycles, w, SOLVER, "ETH").to_dict()["agg"]
+    assert agg == {"validto_clamped_auctions": 2, "validto_clamped_orders": 5}
+
+
 def comparable(stat: dict[str, Any]) -> dict[str, Any]:
     out = {k: stat[k] for k in COMPARED if k in stat}
     out["latency"] = sorted(out["latency"])
@@ -86,6 +97,31 @@ def test_bad_solver_response_reason_is_normalised() -> None:
     s = rebuild_state.SolverStat()
     s.accrue({}, {"outcome": "transport", "solve_error": "bad_solver_response (ValueError)", "latency_ms": 12})
     assert s.transport == 1 and dict(s.errors) == {"bad_solver_response": 1} and s.latency == []
+
+
+def test_only_bad_solver_response_loses_its_suffix() -> None:
+    assert rebuild_state.normalise_reason("bad_solver_response (ValueError)") == "bad_solver_response"
+    assert rebuild_state.normalise_reason("unreachable (RemoteDisconnected)") == "unreachable (RemoteDisconnected)"
+    assert rebuild_state.normalise_reason("http_503") == "http_503"
+    assert rebuild_state.normalise_reason("late") == "late" and rebuild_state.normalise_reason(None) == "unknown"
+    s = rebuild_state.SolverStat()
+    for err in ("unreachable (RemoteDisconnected)", "unreachable (URLError)", "unreachable (URLError)"):
+        s.accrue({}, {"outcome": "transport", "solve_error": err})
+    assert dict(s.errors) == {"unreachable (RemoteDisconnected)": 1, "unreachable (URLError)": 2}
+
+
+def test_answer_counters_are_non_zero_and_exact() -> None:
+    s = rebuild_state.SolverStat()
+    row = {"winner_surplus_wei": 10, "baseline_quality": "exact_uniform"}
+    base = {"outcome": "answered", "latency_ms": 5, "n_solutions": 1, "n_valid": 1, "best_surplus_wei": 1}
+    s.accrue(row, {**base, "fairness": "evaluated", "fairness_filtered": 3, "valid_zero_surplus": 2,
+                   "udcp_checked": 4, "udcp_violations": 1})
+    s.accrue(row, {**base, "fairness": "not_evaluated", "fairness_filtered": 1, "valid_zero_surplus": 1,
+                   "udcp_checked": 2, "udcp_violations": 2})
+    d = s.to_dict()
+    assert (d["fairness_filtered"], d["valid_zero_surplus"]) == (4, 3)
+    assert (d["udcp_checked"], d["udcp_violations"]) == (6, 3)
+    assert (d["fairness_evaluated"], d["fairness_not_evaluated"]) == (1, 1)
 
 
 def test_answer_accounting() -> None:
@@ -147,4 +183,4 @@ def test_state_dict_shape_for_readiness_report() -> None:
         "native",
         "interrupted",
     }
-    assert st["agg"] == {"validto_clamped_auctions": 0} and st["native"] == "ETH"
+    assert st["agg"] == {"validto_clamped_auctions": 0, "validto_clamped_orders": 0} and st["native"] == "ETH"

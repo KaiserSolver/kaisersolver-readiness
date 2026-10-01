@@ -5,13 +5,17 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import sys
 from pathlib import Path
 from typing import Any
 
 import pytest
 
-bt = pytest.importorskip("cow_backtester.backtest")
+if os.environ.get("CI"):  # CI installs the tool: a missing or broken import must fail, not skip
+    import cow_backtester.backtest as bt
+else:
+    bt = pytest.importorskip("cow_backtester.backtest")
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))

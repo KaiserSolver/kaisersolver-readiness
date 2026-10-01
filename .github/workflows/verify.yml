@@ -10,20 +10,39 @@ on:
 permissions:
   contents: read
 
+env:
+  # The tool the fixtures were made with (tools/fixtures/monthly/fixture.json -> tool_version; a test
+  # pins them together). 0.11.3 is not on PyPI yet, hence the full commit pin; switch to
+  # cow-backtester==0.11.3 on release.
+  COW_BACKTESTER_SHA: bd359bbb5992b13ff70f20fb1fdfca9752ef2c72
+
 jobs:
   verify:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          repository: KaiserSolver/cow-backtester
+          ref: ${{ env.COW_BACKTESTER_SHA }}
+          path: cow-backtester
+          persist-credentials: false
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
       - run: sha256sum -c SHA256SUMS
       - run: for f in runs/*/*/SHA256SUMS; do (cd "$(dirname "$f")" && sha256sum -c SHA256SUMS); done
       - run: python3 tools/verify.py
-      # The build_report / run_month tests need the tool the fixtures were made with
-      # (tools/fixtures/monthly/fixture.json → tool_version; a test pins them together).
-      # 0.11.3 is not on PyPI yet, hence the commit pin; switch to cow-backtester==0.11.3 on release.
-      - run: pip install pytest ruff "cow-backtester @ git+https://github.com/KaiserSolver/cow-backtester@bd359bb"
-      - run: ruff check tools
-      - run: python3 -m pytest -q tools
+      - run: pip install pytest==9.1.1 ruff==0.16.1 ./cow-backtester
+      # A tool that fails to import must fail the build, not skip the tests that need it.
+      - run: python3 -c "import cow_backtester.backtest as b; assert b.VERSION == '0.11.3', b.VERSION"
+      - run: ruff check tools tools/e2e/shims/cow-backtester
+      - run: python3 -m pytest -q -rs tools
+        env:
+          COW_BACKTESTER_SRC: ${{ github.workspace }}/cow-backtester
+      # The monthly run end to end against a local stand-in world and a bare remote (about 3 minutes).
+      - run: python3 tools/e2e/run_e2e.py
+        env:
+          COW_BACKTESTER_SRC: ${{ github.workspace }}/cow-backtester

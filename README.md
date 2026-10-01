@@ -184,7 +184,13 @@ COW_BACKTESTER_SRC=~/cow-backtester python3 tools/e2e/run_e2e.py --long-cycle   
 
 It passes only when the published branch, cloned back from the bare remote, verifies and this run's
 `EVIDENCE.sha256` checks out against the evidence on disk, the checkout is back on a clean `main`, and
-the commit carries the owner identity and no trailer.
+the commit carries the owner identity and no trailer. CI installs the tool at a pinned full commit,
+fails (rather than skips) when it cannot be imported, and runs this end to end test on every push.
+
+**Mutation smoke.** `tools/mutation_smoke.py` applies one deliberately wrong edit at a time to a scratch
+copy (a figure mapped from the wrong field, a dropped counter, a changed constant) and checks that the
+test suite fails each time. It is slow and is not part of CI; run it after changing `render_report.py`
+or `rebuild_state.py`.
 
 Reports here are signal, not guarantee: a replay quotes live liquidity against archived auctions.
 Each report says so in its own words.

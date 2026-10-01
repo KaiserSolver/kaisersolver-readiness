@@ -24,8 +24,10 @@ FAILURE_OUTCOMES = ("transport", "deadline_miss")
 
 def normalise_reason(solve_error: str | None) -> str:
     """The tool counts `errors["bad_solver_response"]` but writes the row's `solve_error` as
-    `bad_solver_response (ValueError)`; the counter key is the part before the parenthesis."""
-    return (solve_error or "unknown").split(" (", 1)[0]
+    `bad_solver_response (ValueError)`; the counter key is the part before the parenthesis.
+    Every other reason is its own key as written (`unreachable (RemoteDisconnected)` stays whole)."""
+    reason = solve_error or "unknown"
+    return "bad_solver_response" if reason.startswith("bad_solver_response (") else reason
 
 
 @dataclass
@@ -144,6 +146,7 @@ class RunState:
     attempted_start_ts: list[int]
     budget_upper: list[float]
     validto_clamped_auctions: int
+    validto_clamped_orders: int
     native: str
 
     def to_dict(self) -> dict[str, Any]:
@@ -159,7 +162,10 @@ class RunState:
             "attempted_ts": list(self.attempted_ts),
             "attempted_start_ts": list(self.attempted_start_ts),
             "budget_upper": list(self.budget_upper),
-            "agg": {"validto_clamped_auctions": self.validto_clamped_auctions},
+            "agg": {
+                "validto_clamped_auctions": self.validto_clamped_auctions,
+                "validto_clamped_orders": self.validto_clamped_orders,
+            },
             "native": self.native,
             "interrupted": False,
         }
@@ -184,5 +190,6 @@ def build_state(rows: list[Row], cycles: CycleSelection, w: Window, solver: str,
         attempted_start_ts=[int(r["auction_start_ts"]) for r in ours if r.get("auction_start_ts") is not None],
         budget_upper=[float(r["original_budget_upper_s"]) for r in ours if r.get("original_budget_upper_s") is not None],
         validto_clamped_auctions=sum(1 for r in ours if r.get("validto_clamped")),
+        validto_clamped_orders=sum(int(r.get("validto_clamped") or 0) for r in ours),
         native=native,
     )
