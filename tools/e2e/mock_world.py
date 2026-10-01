@@ -159,6 +159,7 @@ class Chain:
 class Handler(BaseHTTPRequestHandler):
     chain: Chain
     log_file: Any = None
+    receipt_delay_s: float = 0.0
 
     def log_message(self, fmt: str, *args: Any) -> None:  # quiet; the orchestrator prints its own summary
         if self.log_file:
@@ -207,6 +208,8 @@ class Handler(BaseHTTPRequestHandler):
             i = c.index_of_tx(params[0])
             if i is None:
                 return None
+            if method == "eth_getTransactionReceipt" and self.receipt_delay_s:
+                time.sleep(self.receipt_delay_s)  # makes a cycle long enough for a stop to land inside it
             return c.tx(i) if method == "eth_getTransactionByHash" else c.receipt(i)
         if method == "eth_getBlockByNumber":
             block = c.head() if params[0] == "latest" else int(params[0], 16)
@@ -220,7 +223,9 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--step", type=int, default=20, help="blocks between settlements (20 = one every 5 s)")
     ap.add_argument("--head-start", type=int, default=120, help="seconds of chain history that exist at start")
     ap.add_argument("--log", type=Path, default=None, help="request log file")
+    ap.add_argument("--receipt-delay-ms", type=int, default=0, help="latency of every receipt fetch (long cycles)")
     a = ap.parse_args(argv)
+    Handler.receipt_delay_s = a.receipt_delay_ms / 1000
     Handler.chain = Chain(a.step, a.head_start)
     Handler.log_file = open(a.log, "a") if a.log else None
     srv = ThreadingHTTPServer(("127.0.0.1", a.port), Handler)

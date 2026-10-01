@@ -1,0 +1,29 @@
+{
+  "_comment": "Copy to tools/monthly.local.json (git-ignored) and fill in. Only the keys you set are overridden. solver_url is a NON-production instance of the engine build under test (the probe must get HTTP 200 from POST <solver_url>/solve). engine_sha_cmd is an argv list, run without a shell, that prints the build sha of that instance; it is read from this file only.",
+  "evidence_root": "/path/to/evidence-volume/readiness-evidence",
+  "cache": "off",
+  "min_free_gb": 30,
+  "chains": {
+    "arbitrum-one": {
+      "solver_url": "http://HOST:PORT/PATH",
+      "engine_sha_cmd": [
+        "/path/to/print-build-sha",
+        "ARG"
+      ]
+    },
+    "base": {
+      "solver_url": "http://HOST:PORT/PATH",
+      "engine_sha_cmd": [
+        "/path/to/print-build-sha",
+        "ARG"
+      ]
+    },
+    "bnb": {
+      "solver_url": "http://HOST:PORT/PATH",
+      "engine_sha_cmd": [
+        "/path/to/print-build-sha",
+        "ARG"
+      ]
+    }
+  }
+}

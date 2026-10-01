@@ -1,6 +1,10 @@
 {
-  "_comment": "run_month.py config. No secrets: RPC URLs come from the env var named in rpc_env, GH_TOKEN from the env. engine_sha_cmd is a placeholder until the engine host names the command that prints the build sha.",
-  "evidence_root": "/var/lib/kaisersolver/readiness-evidence",
+  "_comment": "run_month.py config, safe to publish: no secrets and no host details. Host settings (evidence_root, each chain's solver_url = the replay target, engine_sha_cmd) go in the untracked tools/monthly.local.json, merged over this file; see monthly.local.example.json. RPC URLs come from the environment variable named in rpc_env; the publish token from publish_token_env.",
+  "evidence_root": "~/readiness-evidence",
+  "cache": "off",
+  "min_free_gb": 30,
+  "max_bad_share_pct": 5,
+  "publish_token_env": "GH_TOKEN",
   "remote": "origin",
   "forum_link": "https://forum.cow.fi/t/measuring-solver-readiness-before-production-a-v0-proposal/3572",
   "duration": "20h",
@@ -9,15 +13,17 @@
   "restart_backoff_seconds": 60,
   "chains": {
     "arbitrum-one": {
-      "solver_url": "http://127.0.0.1:11090/prod/arbitrum-one",
-      "own_addresses": ["0xdd5aecdd8ba8498706e2583f6e2ff90e08e1c01b"],
+      "solver_url": null,
+      "own_addresses": [
+        "0xdd5aecdd8ba8498706e2583f6e2ff90e08e1c01b"
+      ],
       "rpc_env": "READINESS_RPC_ARBITRUM_ONE",
       "engine_sha_cmd": null,
       "watch_seconds": 60,
       "blocks": 2000
     },
     "base": {
-      "solver_url": "http://127.0.0.1:11090/prod/base",
+      "solver_url": null,
       "own_addresses": [],
       "rpc_env": "READINESS_RPC_BASE",
       "engine_sha_cmd": null,
@@ -25,8 +31,10 @@
       "blocks": 2000
     },
     "bnb": {
-      "solver_url": "http://127.0.0.1:11090/prod/bnb",
-      "own_addresses": ["0x4914895fe025d44b2fafbe65f7d988c6ef0c1378"],
+      "solver_url": null,
+      "own_addresses": [
+        "0x4914895fe025d44b2fafbe65f7d988c6ef0c1378"
+      ],
       "rpc_env": "READINESS_RPC_BNB",
       "engine_sha_cmd": null,
       "watch_seconds": 60,

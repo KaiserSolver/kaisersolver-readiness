@@ -38,7 +38,7 @@ index.json          every run's summary, regenerated from the run.json files
 SHA256SUMS          sha256 of every file in the repository
 tools/              add_run.py (record a run), verify.py (check the record), regenerate.py (rebuild the manifests),
                     build_report.py (rows → report.md + figures), run_month.py (the monthly run, end to end),
-                    monthly.json (its config), make_fixture.py + fixtures/ (genuine tool output for the tests), tests
+                    monthly.json + monthly.local.example.json (its config), make_fixture.py + fixtures/ (genuine tool output for the tests), tests
 ```
 
 A run id is the UTC date the run started, with a suffix when a chain has more than one run that day.
@@ -100,32 +100,70 @@ A commit that only changes `tools/` has no run to add; `python3 tools/regenerate
 ## Monthly runs
 
 From October 2026 a report per chain is published every month. `tools/run_month.py` does the whole
-thing on the engine host — one ~20 h `--readiness --watch 60 --compete` run per chain starting
-00:00 UTC on the 1st, reported over its own block window (the same shape as the 2026-09-14 reports):
+thing on the engine host — one ~20 h `--readiness --watch 60 --compete` run per chain, reported over its
+own block window (the same shape as the 2026-09-14 reports):
 
 ```
-tools/run_month.py --chain base --dry-run     # everything but git/gh; prints the commands it would run
-tools/run_month.py --chain base               # cron: 0 0 1 * *  (one line per chain, staggered by a minute)
-tools/run_month.py --chain base --skip-run --run-id 2026-10-01   # rebuild from evidence already on disk
+python3 tools/run_month.py --chain base --dry-run   # replay + build only; no worktree, no commit, nothing sent
+python3 tools/run_month.py --chain base             # build, record and verify locally; prints the publish commands
+python3 tools/run_month.py --chain base --publish   # ... and publish the branch and open the pull request
+python3 tools/run_month.py --chain base --skip-run --run-id 2026-10-01   # rebuild from the evidence on disk
 ```
 
-It runs the tool until the deadline (a clean SIGINT stop; exit 130 means the last cycle was cut short
-and is left out of the window), relaunching on a crash so each launch is its own evidence file
-(`runs/<chain>/<start>T<time>Z.jsonl`) that scans from where the previous one stopped; builds the
-report with `build_report.py`; records it with `add_run.py`; verifies; then commits on
-`readiness/<chain>-<run-id>`, pushes and opens a pull request when `gh` is authenticated, otherwise
-prints the exact commands. The PR is the review step: edit the bottom line if you want, re-run
-`add_run.py --force` so the checksums follow, merge. Every archive is per run and chain
-(`archive/bodies-<ver>/<run-id>-<chain>/`), because a shared manifest would change under the earlier
-runs' fingerprints.
+**Host settings.** `tools/monthly.json` is public and holds only generic settings (chain, our
+settlement addresses, thresholds). Everything about the host goes in `tools/monthly.local.json`, which
+is git-ignored and merged over it; `tools/monthly.local.example.json` shows the keys: `evidence_root`,
+each chain's `solver_url` (the replay target) and `engine_sha_cmd`. A live run refuses to start when
+one is missing; `--dry-run` says which and stops. RPC URLs come from the environment variable
+`rpc_env` names. The tool takes the URL on its command line, so it is visible in `ps` for the length of
+the run: use a key made for this job. The runner never prints it.
 
-`tools/monthly.json` holds the per-chain settings (solver URL, our settlement addresses, the command
-that prints the engine build sha); RPC URLs come from the environment variable it names and are never
-committed. A restarted watch may replay a few auctions twice; the report keeps the first replay and
+**Replay target.** Use a non-production instance of the engine build under test. Before the long run
+the runner POSTs one small real `/solve` to it and requires HTTP 200; a refusing ingress (403) would
+otherwise score every replay as a transport error. The public report names the target only as
+`<solver-url>`.
+
+**Load and disk.** The tool runs under `ionice -c3 nice -n 19` in its own session, and a lock in the
+evidence root means only one run executes at a time on the host, so schedule the chains on separate
+days (`--wait-lock` queues instead of failing). The runner needs `min_free_gb` (default 30) free under
+the evidence root to start, re-checks it between launches and while the tool runs, and stops early
+(partial run, not published) when it is crossed. The tool's cache is off, so nothing but the body
+archive (about 6 GB for a month) and the rows grows. Archived bodies are the reproducibility
+evidence and are never deleted by the runner: move closed months to cheaper storage by hand once their
+pull request is merged. If the tool reports an archive write error the run fails and nothing is built.
+
+**Stopping.** At the deadline the runner sends the tool SIGINT and repeats it every 30 s (the tool
+finishes the cycle in flight with partial data on the first and only stops on a later one), then
+SIGTERM after the grace, then SIGKILL. A stop the runner sent is clean whatever the exit code, and the
+cycle in flight is left out of the window. A crash is relaunched; the budget counts consecutive failures
+and resets whenever a launch wrote a cycle. The relaunch asks for a few hundred blocks more than the
+gap, so launches overlap (disclosed in the report) instead of leaving blocks unscanned, and a gap is
+detected afterwards. Running out of restarts or disk after at least one cycle builds a partial run.
+What happened is in `runs/<chain>/<run-id>.plan.json` beside the evidence, which `--skip-run` reads;
+the output of every launch is in `logs/<chain>/` under the evidence root. SIGINT or SIGTERM to the
+runner stops the tool and exits 130 with the state written.
+
+**Recording and publishing.** The record is written in a fresh `git worktree` cut from `origin/main`
+under the build root, so the checkout the runner lives in is never switched, dirtied or stacked
+across chains; `tools/` in that checkout must equal `origin/main` (the code that runs is the code that
+is recorded). The commit is authored and committed as `kaisersolver` with no trailers. Nothing leaves
+the host unless `--publish` is given and the gate passes: bids returned, transport plus deadline-miss
+share at most `max_bad_share_pct` (default 5), no unscanned gap, one engine build (the sha is re-read at
+every launch and at the end), not a partial run. A refused run is still recorded and committed locally
+(exit 3). `--publish` authenticates with a token limited to this repository (fine-grained, Contents
+and Pull requests write) in the environment variable `publish_token_env` names (default `GH_TOKEN`),
+passed to `git` and `gh` through the environment, never the host's global `gh` login. The pull request
+is the review step: edit the bottom line if you want, re-run `add_run.py --force` so the checksums
+follow, merge. Every archive is per run and chain (`archive/bodies-<ver>/<run-id>-<chain>/`), because
+a shared manifest would change under the earlier runs' fingerprints.
+
+`engine_sha_cmd` is an argv list run without a shell, on the host, and is read only from the
+git-ignored overlay; as root the runner wants `--allow-root` before it runs it. `--start` must carry a
+timezone. A restarted watch may replay a few auctions twice; the report keeps the first replay and
 says how many blocks were scanned twice.
 
 **End-to-end test.** `tools/e2e/run_e2e.py` runs the real `run_month.py`, the real `cow-backtester`
-CLI doing a real watch over HTTP, the real `add_run.py` / `verify.py` and a real `git push` — against
+CLI doing a real watch over HTTP, the real `add_run.py` / `verify.py` and a real publish — against
 a stand-in world: `tools/e2e/mock_world.py` serves the chain's JSON-RPC, the S3 bucket and the CoW API
 on one local port and advances 4 blocks/s in wall-clock time; the tool's own `mock_solver.py` is the
 engine; a `gh` shim logs instead of reaching GitHub; a bare repository is the remote. It needs the
@@ -133,10 +171,12 @@ tool checkout (`COW_BACKTESTER_SRC`) and takes as long as `--duration` (default 
 
 ```
 COW_BACKTESTER_SRC=~/cow-backtester python3 tools/e2e/run_e2e.py --duration 150s
+COW_BACKTESTER_SRC=~/cow-backtester python3 tools/e2e/run_e2e.py --long-cycle   # the deadline lands inside a cycle
 ```
 
-It passes only when the pushed branch, cloned back from the bare remote, verifies and this run's
-`EVIDENCE.sha256` checks out against the evidence on disk.
+It passes only when the published branch, cloned back from the bare remote, verifies and this run's
+`EVIDENCE.sha256` checks out against the evidence on disk, the checkout is back on a clean `main`, and
+the commit carries the owner identity and no trailer.
 
 Reports here are signal, not guarantee: a replay quotes live liquidity against archived auctions.
 Each report says so in its own words.

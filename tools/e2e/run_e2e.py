@@ -39,6 +39,7 @@ HERE = Path(__file__).resolve().parent
 TOOLS = HERE.parent
 RECORD = TOOLS.parent
 SRC = Path(os.environ.get("COW_BACKTESTER_SRC", Path.home() / "cow-backtester")).expanduser()
+TRAILER_WORDS = ("co-authored", "generated", "assistant")
 KAISER = "0xdd5aecdd8ba8498706e2583f6e2ff90e08e1c01b"
 
 
@@ -87,7 +88,7 @@ class World:
         self.work = root / "work"
         self.logs = root / "logs"
 
-    def start(self, step: int, head_start: int) -> None:
+    def start(self, step: int, head_start: int, receipt_delay_ms: int = 0) -> None:
         for d in (self.bin, self.evidence, self.logs):
             d.mkdir(parents=True, exist_ok=True)
         for shim in ("cow-backtester", "gh"):
@@ -100,7 +101,8 @@ class World:
         world_env = {**os.environ, "COW_BACKTESTER_SRC": str(SRC)}
         self.procs.append(subprocess.Popen(
             [self.python, str(HERE / "mock_world.py"), "--port", str(self.mock_port), "--step", str(step),
-             "--head-start", str(head_start), "--log", str(self.logs / "mock_world.log")],
+             "--head-start", str(head_start), "--log", str(self.logs / "mock_world.log"),
+             "--receipt-delay-ms", str(receipt_delay_ms)],
             stdout=open(self.logs / "mock_world.out", "wb"), stderr=subprocess.STDOUT, env=world_env,
         ))  # fmt: skip
         self.procs.append(subprocess.Popen(
@@ -134,30 +136,43 @@ class World:
         (self.work / ".git" / "config").open("a").write("[user]\n\tname = e2e\n\temail = e2e@example.invalid\n")
 
     def config(self, duration: str, watch_s: int, blocks: int) -> Path:
+        """The tracked-style config plus the host overlay run_month.py reads beside it."""
         cfg = self.root / "monthly.e2e.json"
         cfg.write_text(json.dumps({
-            "evidence_root": str(self.evidence), "remote": "origin",
+            "evidence_root": str(self.evidence), "remote": "origin", "cache": "off", "min_free_gb": 1,
             "forum_link": "https://forum.cow.fi/t/3572", "duration": duration, "grace_seconds": 30,
             "max_restarts": 2, "restart_backoff_seconds": 5,
-            "chains": {"arbitrum-one": {"solver_url": self.solver_url, "own_addresses": [KAISER], "rpc_env": "E2E_RPC",
-                                        "engine_sha_cmd": "echo e2e0c0ffee", "watch_seconds": watch_s, "blocks": blocks}},
+            "chains": {"arbitrum-one": {"solver_url": None, "own_addresses": [KAISER], "rpc_env": "E2E_RPC",
+                                        "engine_sha_cmd": None, "watch_seconds": watch_s, "blocks": blocks}},
+        }, indent=1))  # fmt: skip
+        (self.root / "monthly.e2e.local.json").write_text(json.dumps({
+            "chains": {"arbitrum-one": {"solver_url": self.solver_url, "engine_sha_cmd": ["echo", "e2e0c0ffee"]}},
         }, indent=1))  # fmt: skip
         return cfg
 
     def env(self) -> dict[str, str]:
         return {**os.environ, "PATH": f"{self.bin}:{os.environ['PATH']}", "E2E_MOCK_URL": self.mock_url,
-                "E2E_GH_LOG": str(self.logs / "gh.log"), "E2E_RPC": self.mock_url, "COW_BACKTESTER_SRC": str(SRC)}  # fmt: skip
+                "E2E_GH_LOG": str(self.logs / "gh.log"), "E2E_RPC": self.mock_url, "COW_BACKTESTER_SRC": str(SRC),
+                "GH_TOKEN": "e2e-repo-scoped-token"}  # fmt: skip
 
 
-def run_month(w: World, cfg: Path, timeout: int) -> tuple[subprocess.CompletedProcess[str], str]:
+def run_month(w: World, cfg: Path, timeout: int, resend_s: int = 30) -> tuple[subprocess.CompletedProcess[str], str]:
     run_id = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     p = sh([w.python, str(w.work / "tools" / "run_month.py"), "--chain", "arbitrum-one", "--config", str(cfg),
-            "--record-root", str(w.work)], cwd=w.work, env=w.env(), timeout=timeout)  # fmt: skip
+            "--record-root", str(w.work), "--publish", "--allow-root", "--stop-resend-seconds", str(resend_s)],
+           cwd=w.work, env=w.env(), timeout=timeout)  # fmt: skip
     (w.logs / "run_month.out").write_text(p.stdout + "\n--- stderr ---\n" + p.stderr)
     return p, run_id
 
 
-def check(w: World, run_id: str, result: subprocess.CompletedProcess[str]) -> dict[str, Any]:
+def check(
+    w: World,
+    run_id: str,
+    result: subprocess.CompletedProcess[str],
+    min_attempted: int = 10,
+    min_cycles: int = 2,
+    long_cycle: bool = False,
+) -> dict[str, Any]:
     """Every assertion; raises AssertionError with the first failure."""
     branch = f"readiness/arbitrum-one-{run_id}"
     assert result.returncode == 0, f"run_month exited {result.returncode}"
@@ -178,7 +193,7 @@ def check(w: World, run_id: str, result: subprocess.CompletedProcess[str]) -> di
     report = (run_dir / "report.md").read_text()
     assert run["verdict"] in ("READY", "REVIEW", "NOT READY"), run["verdict"]
     assert run["window"]["from_block"] < run["window"]["to_block"]
-    assert run["figures"]["attempted"] >= 10, f"only {run['figures']['attempted']} auctions attempted"
+    assert run["figures"]["attempted"] >= min_attempted, f"only {run['figures']['attempted']} auctions attempted"
     assert run["generator"]["path"] == "tools/build_report.py" and run["engine"] == {"build_sha": "e2e0c0ffee"}
     assert len(run["evidence"]) >= 2 and run["evidence"][-1]["kind"] == "body-archive-manifest"
     assert f"{run_id}-arbitrum-one/manifest.jsonl" in run["evidence"][-1]["path"], run["evidence"][-1]["path"]
@@ -191,11 +206,30 @@ def check(w: World, run_id: str, result: subprocess.CompletedProcess[str]) -> di
     evidence_files = sorted((w.evidence / "runs" / "arbitrum-one").glob(f"{run_id}T*.jsonl"))
     assert evidence_files, "no evidence file written"
     metas = sum(1 for f in evidence_files for ln in f.read_text().splitlines() if '"_meta"' in ln)
-    assert metas >= 2, f"only {metas} watch cycle(s) completed"
+    assert metas >= min_cycles, f"only {metas} watch cycle(s) completed"
     assert not (w.work / ".cowbt-cache").exists(), "the tool's cache landed inside the record checkout"
-    assert (w.evidence / ".cowbt-cache").exists(), "the tool's cache was not redirected to the evidence root"
+    assert not (w.evidence / ".cowbt-cache").exists(), "the tool cached on the evidence volume although cache is off"
     status = must(sh(["git", "status", "--porcelain"], cwd=w.work), "git status").stdout
     assert status.strip() == "", f"record checkout left dirty:\n{status}"
+    on = must(sh(["git", "branch", "--show-current"], cwd=w.work), "git branch").stdout.strip()
+    assert on == "main", f"the record checkout was left on {on!r}"
+    trees = must(sh(["git", "worktree", "list", "--porcelain"], cwd=w.work), "git worktree list").stdout.count("worktree ")
+    assert trees == 1, "the run's worktree was not removed after publishing"
+    log = must(sh(["git", "--git-dir", str(w.remote), "log", "-1", "--format=%an <%ae>|%cn <%ce>%n%B", branch]), "git log").stdout
+    assert log.startswith(
+        "kaisersolver <kaisersolver@users.noreply.github.com>|kaisersolver <kaisersolver@users.noreply.github.com>"
+    )
+    assert not any(x in log.lower() for x in TRAILER_WORDS), log
+    state = json.loads((w.evidence / "runs" / "arbitrum-one" / f"{run_id}.plan.json").read_text())
+    window = json.loads((w.work / "build" / "arbitrum-one" / run_id / "window.json").read_text())
+    if long_cycle:
+        # the deadline landed inside a long cycle: the tool answered the stop with a partial cycle (full-range _meta)
+        # and kept going until the repeated SIGINT; that is a clean stop, and the partial cycle is not in the window
+        assert state["cut_short"] is True and state["launches"][-1]["signalled"] is True, state
+        assert state["launches"][-1]["escalation"] == "sigint" and state["launches"][-1]["exit_code"] in (0, 130), state
+        assert window["last_cycle_dropped"] is True
+        all_metas = [json.loads(ln)["_meta"] for f in evidence_files for ln in f.read_text().splitlines() if '"_meta"' in ln]
+        assert run["window"]["to_block"] == all_metas[-2]["to_block"] < all_metas[-1]["to_block"], (run["window"], all_metas)
     return {"verdict": run["verdict"], "attempted": run["figures"]["attempted"], "cycles": metas,
             "launches": len(evidence_files), "warns": run["figures"]["warns"],
             "fails": [c["label"] for c in run["checks"] if c["level"] == "fail"], "branch": branch,
@@ -210,18 +244,27 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--blocks", type=int, default=400, help="the first cycle's look-back")
     ap.add_argument("--step", type=int, default=20, help="mock chain: blocks between settlements")
     ap.add_argument("--head-start", type=int, default=120, help="mock chain: seconds of history at start")
+    ap.add_argument(
+        "--long-cycle",
+        action="store_true",
+        help="slow receipts so the deadline lands inside a cycle: the stop must be clean and the cycle dropped",
+    )
     ap.add_argument("--workdir", type=Path, default=None, help="keep everything here (default: a temp dir, removed on success)")
     a = ap.parse_args(argv)
     root = a.workdir or Path(tempfile.mkdtemp(prefix="readiness-e2e-"))
     root.mkdir(parents=True, exist_ok=True)
     w = World(root, a.python)
     try:
-        w.start(a.step, a.head_start)
+        if a.long_cycle:  # cycles of about 10 s (receipts take 10 s), a 28 s deadline inside the second one
+            a.duration, a.watch, a.blocks = "28s", 10, 40
+        w.start(a.step, a.head_start, receipt_delay_ms=10_000 if a.long_cycle else 0)
         w.make_record()
         cfg = w.config(a.duration, a.watch, a.blocks)
         seconds = int(a.duration.rstrip("smh")) * {"s": 1, "m": 60, "h": 3600}[a.duration[-1]]
-        result, run_id = run_month(w, cfg, timeout=seconds + 300)
-        summary = check(w, run_id, result)
+        result, run_id = run_month(w, cfg, timeout=seconds + 300, resend_s=4 if a.long_cycle else 30)
+        summary = (
+            check(w, run_id, result, min_attempted=1, min_cycles=2, long_cycle=True) if a.long_cycle else check(w, run_id, result)
+        )
     except (AssertionError, SystemExit) as e:
         print(json.dumps({"e2e": "FAILED", "error": str(e), "workdir": str(root)}), file=sys.stderr)
         for name in ("run_month.out", "mock_solver.out", "mock_world.out"):
