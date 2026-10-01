@@ -28,7 +28,13 @@ ROOT_MANIFEST_SKIP = {"SHA256SUMS"}
 
 _VERDICT_RE = re.compile(r"READINESS\s+[—-]\s+(?P<solver>\S+)\s+\[(?P<verdict>READY|REVIEW|NOT READY)\]")
 _WINDOW_RE = re.compile(r"^\s*(?P<chain>[a-z0-9-]+) · (?P<env>[a-z]+) · blocks (?P<lo>\d+)\.\.(?P<hi>\d+)\s*$", re.MULTILINE)
-_CHECK_RE = re.compile(r"^\s*\[(?P<level>PASS|WARN|FAIL)\] (?P<label>.+?)\s{2,}(?P<detail>.+?)\s*$", re.MULTILINE)
+# The tool prints each check as `[LEVEL] {label:<24} {detail}` (backtest.py, readiness_report):
+# the label field is 24 columns wide and ONE space follows it. A label of exactly 24 characters
+# ("winner surplus plausible", 0.11.1+) therefore has no run of two spaces before its detail, so
+# the split is done on the fixed width, not on whitespace — and never across a newline.
+_CHECK_LINE_RE = re.compile(r"^[ \t]*\[(?P<level>PASS|WARN|FAIL)\] (?P<rest>\S.*?)[ \t]*$", re.MULTILINE)
+_CHECK_LABEL_WIDTH = 24
+_CHECK_SPLIT_RE = re.compile(r"[ \t]{2,}")
 _TOOL_RE = re.compile(r"#\s*cow-backtester (?P<version>\d[\w.]*)(?: · engine build sha: (?P<sha>[0-9a-f]{7,40}))?")
 _BUDGET_RE = re.compile(r"^\s*budget\s+:\s+(?P<s>[\d.]+) s \((?P<source>\w+)", re.MULTILINE)
 _SAMPLE_RE = re.compile(r"^\s*INSUFFICIENT SAMPLE", re.MULTILINE)
@@ -54,6 +60,18 @@ def utc_now() -> str:
     return datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
 
 
+def _split_check(level: str, rest: str) -> dict:
+    """`rest` is everything after `[LEVEL] `: a 24-column label field, one space, the detail.
+    A hand-padded line (wider label field) falls back to the first run of two spaces."""
+    field, sep = rest[:_CHECK_LABEL_WIDTH], rest[_CHECK_LABEL_WIDTH:_CHECK_LABEL_WIDTH + 1]
+    if sep == " " and "  " not in field.rstrip():
+        label, detail = field, rest[_CHECK_LABEL_WIDTH + 1:]
+    else:
+        parts = _CHECK_SPLIT_RE.split(rest, maxsplit=1)
+        label, detail = parts[0], parts[1] if len(parts) > 1 else ""
+    return {"level": level.lower(), "label": label.strip(), "detail": detail.strip()}
+
+
 def parse_report(text: str) -> dict:
     """Pull the facts the tool prints on its readiness screen out of a report.
 
@@ -71,8 +89,7 @@ def parse_report(text: str) -> dict:
         out["chain"] = m["chain"]
         out["env"] = m["env"]
         out["window"] = {"from_block": int(m["lo"]), "to_block": int(m["hi"])}
-    checks = [{"level": c["level"].lower(), "label": c["label"].strip(), "detail": c["detail"].strip()}
-              for c in _CHECK_RE.finditer(text)]
+    checks = [_split_check(c["level"], c["rest"]) for c in _CHECK_LINE_RE.finditer(text)]
     if checks:
         out["checks"] = checks
     m = _TOOL_RE.search(text)
