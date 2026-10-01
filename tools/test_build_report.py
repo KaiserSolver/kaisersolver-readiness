@@ -22,7 +22,7 @@ import verify  # noqa: E402
 
 FIX = HERE / "fixtures" / "monthly"
 RUNS = FIX / "runs" / "arbitrum-one"
-FILE1, FILE2, EMPTY = RUNS / "2026-10-01T000000Z.jsonl", RUNS / "2026-10-01T090000Z.jsonl", RUNS / "empty.jsonl"
+FILE1, FILE2, EMPTY = RUNS / "fixture-a.jsonl", RUNS / "fixture-b.jsonl", RUNS / "empty.jsonl"
 MANIFEST = FIX / "archive" / f"bodies-{'.'.join(bt.VERSION.split('.')[:2])}" / "manifest.jsonl"
 PARAMS = json.loads((FIX / "fixture.json").read_text())
 EXPECTED = json.loads((FIX / "expected_full.json").read_text())["readiness"]
@@ -140,9 +140,9 @@ def test_round_trip_through_add_run_and_verify(built: Path, tmp_path: Path) -> N
             "--evidence-root",
             str(FIX),
             "--evidence",
-            "runs/arbitrum-one/2026-10-01T000000Z.jsonl",
+            "runs/arbitrum-one/fixture-a.jsonl",
             "--evidence",
-            "runs/arbitrum-one/2026-10-01T090000Z.jsonl",
+            "runs/arbitrum-one/fixture-b.jsonl",
             "--evidence",
             str(MANIFEST.relative_to(FIX)) + ":body-archive-manifest",
             "--figures",
@@ -184,7 +184,7 @@ def rewrite_rows(src: Path, dst: Path, **changes: Any) -> Path:
 
 
 def test_version_mismatch_is_refused_unless_allowed(tmp_path: Path) -> None:
-    other = rewrite_rows(FILE1, tmp_path / "2026-10-01T000000Z.jsonl", v="0.9.9")
+    other = rewrite_rows(FILE1, tmp_path / "fixture-a.jsonl", v="0.9.9")
     with pytest.raises(SystemExit, match="produced by cow-backtester 0.9.9"):
         build_report.build(argv(tmp_path / "out", files=[other], window=PARAMS["window_file1"]))
     assert (
@@ -197,7 +197,7 @@ def test_version_mismatch_is_refused_unless_allowed(tmp_path: Path) -> None:
 
 
 def test_mixed_versions_wrong_chain_bad_sha_are_refused(tmp_path: Path) -> None:
-    mixed = rewrite_rows(FILE2, tmp_path / "2026-10-01T090000Z.jsonl", v="0.9.9")
+    mixed = rewrite_rows(FILE2, tmp_path / "fixture-b.jsonl", v="0.9.9")
     with pytest.raises(SystemExit, match="several tool versions"):
         build_report.build(argv(tmp_path / "o1", files=[FILE1, mixed]))
     with pytest.raises(SystemExit, match="not --chain base"):
@@ -213,3 +213,43 @@ def test_min_evidence_override_is_marked(tmp_path: Path) -> None:
     text = (tmp_path / "out" / "report.md").read_text()
     assert "min_evidence 40 (override: min_evidence)" in text
     assert record.parse_report(text).get("insufficient_sample") is None  # 40 attempted meets the floor
+
+
+def test_built_run_dir_carries_no_absolute_paths(built: Path) -> None:
+    def strings(o: Any) -> Any:
+        if isinstance(o, str):
+            yield o
+        elif isinstance(o, dict):
+            for v in o.values():
+                yield from strings(v)
+        elif isinstance(o, list):
+            for v in o:
+                yield from strings(v)
+
+    meta = json.loads((built / "meta.json").read_text())
+    assert not [s for s in strings(meta) if s.startswith("/")]
+    assert meta["bottom_line"] == "generated"
+
+
+def test_add_run_takes_only_whitelisted_meta_and_marks_edited_bottom_line(built: Path, tmp_path: Path) -> None:
+    import add_run
+
+    meta = json.loads((built / "meta.json").read_text())
+    meta["evidence_root"] = "/srv/private"
+    (tmp_path / "meta.json").write_text(json.dumps(meta))
+    report = (built / "report.md").read_text()
+
+    def record(text: str, name: str) -> dict:
+        rep = tmp_path / f"{name}.md"
+        rep.write_text(text)
+        root = tmp_path / name
+        (root / "tools").mkdir(parents=True)
+        (root / "README.md").write_text("# t\n\n<!-- runs:start -->\n<!-- runs:end -->\n")
+        add_run.main(["--root", str(root), "--chain", "arbitrum-one", "--run-id", "2026-10-01", "--report", str(rep),
+                      "--meta", str(tmp_path / "meta.json"), "--engine-sha", ENGINE_SHA])
+        return json.loads((root / "runs" / "arbitrum-one" / "2026-10-01" / "run.json").read_text())
+
+    run = record(report, "gen")
+    assert run["bottom_line"] == "generated" and "evidence_root" not in run
+    edited = record(report.replace("NOT READY:", "Reviewed:", 1), "ed")
+    assert edited["bottom_line"] == "edited"

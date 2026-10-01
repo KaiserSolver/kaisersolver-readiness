@@ -11,12 +11,14 @@ index.json, the README table and the root SHA256SUMS.
 
 Everything the readiness screen prints (verdict, window, checks, tool and
 engine versions, budget) is parsed from the report; pass --tool-version /
---engine-sha / --verdict to supply or override. --meta merges an arbitrary
-JSON object into run.json for anything else.
+--engine-sha / --verdict to supply or override. --meta merges the build facts
+(generator, rows_tool_version, build, body_archive_manifest, bottom_line) of build_report's meta.json
+into run.json; other keys are ignored so host details cannot slip in.
 """
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import shutil
 import sys
@@ -24,6 +26,19 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import record
+
+META_KEYS = ("generator", "rows_tool_version", "build", "body_archive_manifest")
+
+
+def bottom_line_state(meta: dict, report_text: str) -> str:
+    """'generated' while the report still carries the paragraph the builder wrote, else 'edited'."""
+    if meta.get("bottom_line") == "edited":
+        return "edited"
+    want = meta.get("bottom_line_generated_sha256")
+    para = next((p for p in report_text.split("\n\n") if p.startswith("**Bottom line for ")), None)
+    if want and para is not None and hashlib.sha256(para.strip().encode()).hexdigest() == want:
+        return "generated"
+    return "edited"
 
 
 def parse_provenance(s: str) -> dict:
@@ -41,7 +56,7 @@ def main(argv=None) -> int:
     ap.add_argument("--root", type=Path, default=Path(__file__).resolve().parent.parent, help="repository root")
     ap.add_argument("--chain", required=True)
     ap.add_argument("--run-id", required=True, help="YYYY-MM-DD the run started (UTC), optional suffix")
-    ap.add_argument("--report", required=True, type=Path, help="the public report; copied in byte-for-byte")
+    ap.add_argument("--report", required=True, type=Path, help="the public report; copied in unchanged")
     ap.add_argument("--kind", default="readiness")
     ap.add_argument("--solver", default="kaisersolver")
     ap.add_argument("--status", default="current", choices=["current", "superseded"])
@@ -99,7 +114,10 @@ def main(argv=None) -> int:
             fig = fig[a.figures_key]
         run["figures"] = fig
     if a.meta:
-        run.update(json.loads(a.meta.read_text()))
+        meta = json.loads(a.meta.read_text())
+        run.update({k: meta[k] for k in META_KEYS if k in meta})
+        if "bottom_line" in meta:
+            run["bottom_line"] = bottom_line_state(meta, text)
     if a.provenance:
         run["provenance"] = parse_provenance(a.provenance)
     if a.note:

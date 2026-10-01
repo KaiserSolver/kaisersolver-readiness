@@ -59,3 +59,12 @@ def test_published_reports_parse_exactly_as_recorded() -> None:
         parsed = record.parse_report((run_json.parent / "report.md").read_text())
         assert parsed["checks"] == run["checks"], run_json
         assert parsed["verdict"] == run["verdict"] and parsed["window"] == run["window"], run_json
+
+
+def test_a_label_wider_than_the_field_is_refused_not_guessed() -> None:
+    import pytest
+
+    with pytest.raises(ValueError):
+        record._split_check("PASS", "winner surplus plausible! detail")
+    ok = record._split_check("PASS", "winner surplus plausible " + "detail")
+    assert ok["label"] == "winner surplus plausible" and ok["detail"] == "detail"

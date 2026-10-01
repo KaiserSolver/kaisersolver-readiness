@@ -40,7 +40,7 @@ TOOLS = HERE.parent
 RECORD = TOOLS.parent
 SRC = Path(os.environ.get("COW_BACKTESTER_SRC", Path.home() / "cow-backtester")).expanduser()
 TRAILER_WORDS = ("co-authored", "generated", "assistant")
-KAISER = "0xdd5aecdd8ba8498706e2583f6e2ff90e08e1c01b"
+KAISER = "0x00000000000000000000000000000000000d0c0a"
 
 
 def free_port() -> int:

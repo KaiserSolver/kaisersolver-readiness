@@ -9,7 +9,7 @@ from __future__ import annotations
 import hashlib
 import statistics
 from collections.abc import Iterable
-from dataclasses import asdict, dataclass, fields
+from dataclasses import asdict, dataclass, fields, replace
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -50,7 +50,7 @@ class PublicFigures:
     capture: float | None
     capture_x: float | None
     arte: list[int]
-    own_wins: int
+    own_wins: int | None
     perbid: float | None
     n_perbid: int
     flagged: int
@@ -120,6 +120,7 @@ class ReportOptions:
     duplicates: int
     overlap_blocks: int
     launches: int
+    dropped_cycles: int = 0
 
 
 # ------------------------------------------------------------------ small helpers
@@ -158,8 +159,11 @@ def n_solutions(vs: dict[str, Any]) -> int:
 # ------------------------------------------------------------------ derived figures
 
 
-def own_wins(rows: Iterable[Row], own_addresses: Iterable[str]) -> int:
+def own_wins(rows: Iterable[Row], own_addresses: Iterable[str]) -> int | None:
+    """None when no own address is configured: nothing was measured, which is not a zero."""
     own = {a.lower() for a in own_addresses}
+    if not own:
+        return None
     return sum(1 for r in rows if any((t.get("submitter") or "").lower() in own for t in r.get("winner_txs") or []))
 
 
@@ -324,10 +328,15 @@ def _header_bullets(rep: dict[str, Any], fig: PublicFigures, rows: list[Row], op
             f"- **Capture:** {pct(fig.capture)} of the on-chain winners' surplus, coverage-adjusted "
             "(the screen below rounds to whole percent)"
         )
-    lines.append(
-        f"- **Own wins:** {fig.own_wins} of the {fig.attempted} attempted auctions were settled on-chain by "
-        f"{rep['solver']}'s own account (counted per auction)"
-    )
+    if fig.own_wins is None:
+        lines.append(
+            "- **Own wins:** not configured (no own settlement address was given for this chain, so this was not measured)"
+        )
+    else:
+        lines.append(
+            f"- **Own wins:** {fig.own_wins} of the {fig.attempted} attempted auctions were settled on-chain by "
+            f"{rep['solver']}'s own account (counted per auction)"
+        )
     if fig.perbid is not None and share is not None:
         excl = " (artefact excluded)" if artefacts else ""
         lines.append(
@@ -386,6 +395,11 @@ def _plausibility_paragraph(p: Plausibility, native: str) -> str:
     )
 
 
+def generated_bottom_line(rep: dict[str, Any], fig: PublicFigures, opts: ReportOptions) -> str:
+    """The bottom-line paragraph exactly as render() writes it when no text is supplied."""
+    return _bottom_line(rep, fig, replace(opts, bottom_line=None))
+
+
 def _bottom_line(rep: dict[str, Any], fig: PublicFigures, opts: ReportOptions) -> str:
     text = opts.bottom_line or (
         f"{rep['verdict']}: {verdict_tail(rep)}. Answered {rep['answer_rate_pct'] or 0:.0f} % of {fig.attempted} attempted "
@@ -404,12 +418,12 @@ def _method_notes(fig: PublicFigures, opts: ReportOptions) -> str:
         "- Counters are cumulative over the watch run (the tool's per-cycle screens are summed; each auction "
         "counted once). The verdict is the tool's own `readiness_report` over those counters.",
     ]
-    if opts.launches > 1:
-        lines.append(
-            f"- The watch was (re)started {opts.launches} times; {opts.duplicates} auction(s) replayed twice keep "
-            f"their first replay, and {opts.overlap_blocks} block(s) were scanned twice, so the field line's "
-            "settlement and auction counts include both scans."
-        )
+    lines.append(
+        f"- The watch ran in {opts.launches} launch(es). {opts.duplicates} auction(s) seen more than once keep "
+        f"their first replay; {opts.overlap_blocks} block(s) were scanned more than once"
+        + (", so the field line's settlement and auction counts include every scan" if opts.overlap_blocks else "")
+        + f"; {opts.dropped_cycles} cycle(s) lay wholly inside blocks already scanned and were left out."
+    )
     if opts.rows_tool_version != opts.tool_version:
         lines.append(
             f"- The rows were produced by cow-backtester {opts.rows_tool_version}; the verdict and screen come from "

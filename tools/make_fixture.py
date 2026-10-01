@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
-"""Generate tools/fixtures/monthly/ — genuine cow-backtester --json-out rows, offline.
+"""Generate tools/fixtures/monthly/ — SYNTHETIC cow-backtester --json-out rows, offline.
 
 Hand-run, not a test. It drives the tool's REAL `main()` in-process and replaces only
 the functions that reach the network (RPC, S3, the solver, the competition API), so
-every row and `_meta` line is written by the tool's own code. The pinned Arbitrum
+every row and `_meta` line is written by the tool's own code over stand-in inputs: it is not a recorded run,
+the transaction hashes are invented and the submitter addresses are dummies. The pinned Arbitrum
 fixture (auction 8339027) is cloned into many auctions by rewriting the auction id in
 the settlement calldata (its last 8 bytes) and giving each clone its own block.
 
@@ -14,8 +15,8 @@ ship) and `cow_backtester` importable from it. Run it from the repo root: the re
 line inside the expected files carries the archive path as given. Output, laid out as an
 evidence root (what `add_run.py --evidence-root` and `verify.py --evidence-root` expect):
 
-  runs/arbitrum-one/2026-10-01T000000Z.jsonl   a watch run, 3 cycles
-  runs/arbitrum-one/2026-10-01T090000Z.jsonl   a restart: 2 cycles whose first re-scans part of
+  runs/arbitrum-one/fixture-a.jsonl   a watch run, 3 cycles
+  runs/arbitrum-one/fixture-b.jsonl   a restart: 2 cycles whose first re-scans part of
                                                the previous file (duplicate auction ids), then
                                                rows of a killed run with no closing _meta
   runs/arbitrum-one/empty.jsonl                a watch that died before its first row
@@ -54,13 +55,13 @@ ORIGINAL_READINESS_REPORT = backtest.readiness_report  # wrapped per run; never 
 
 CHAIN = "arbitrum-one"
 SOLVER = "kaisersolver"
-SOLVER_URL = "http://127.0.0.1:11090/prod/arbitrum-one"
-KAISER = "0xdd5aecdd8ba8498706e2583f6e2ff90e08e1c01b"
+SOLVER_URL = "http://solver.invalid/prod/arbitrum-one"
+KAISER = "0x00000000000000000000000000000000000d0c0a"  # dummy address, not a real account
 RIVAL = "0x0000000000000000000000000000000000000abc"
 FIRST_AID = 8339027
 BLOCK0 = 491743388
 BLOCK_STEP = 6000  # ~25 min of Arbitrum blocks between auctions → ~18 h over 43 auctions
-T0 = 1_790_812_800  # 2026-10-01T00:00:00Z
+T0 = 1_772_409_600  # 2026-03-02T00:00:00Z, deliberately not a month the record covers
 BUDGET_S = 4.84
 # per-auction behaviour of "our" solver, by index; everything else answers uniformly
 MODES: dict[int, str] = {
@@ -373,7 +374,7 @@ def main(argv: list[str] | None = None) -> int:
         d.mkdir(parents=True)
     w = World()
     patch_world(w)
-    file1, file2 = runs_dir / "2026-10-01T000000Z.jsonl", runs_dir / "2026-10-01T090000Z.jsonl"
+    file1, file2 = runs_dir / "fixture-a.jsonl", runs_dir / "fixture-b.jsonl"
     cap1 = run_watch(w, CYCLES_FILE1, file1, archive)
     cap2 = run_watch(w, CYCLES_FILE2, file2, archive)
     tail_rows = killed_tail(w, file2, archive)

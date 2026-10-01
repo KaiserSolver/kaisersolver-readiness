@@ -1,6 +1,6 @@
 # kaisersolver readiness record
 
-Every readiness run of **kaisersolver**, a solver on [CoW Protocol](https://cow.fi), with a
+Every published readiness run of **kaisersolver**, a solver on [CoW Protocol](https://cow.fi), with a
 checksum on everything: the report as it was published, the structured facts behind it, and
 fingerprints of the raw evidence it was built from. This is the running record promised in
 [Measuring solver readiness before production: a v0 proposal](https://forum.cow.fi/t/measuring-solver-readiness-before-production-a-v0-proposal/3572)
@@ -30,7 +30,7 @@ its `run.json` names the run that replaces it.
 
 ```
 runs/<chain>/<run-id>/
-  report.md         the report, byte-for-byte as published
+  report.md         the report, copied in unchanged
   run.json          window, verdict, every check, tool + engine versions, provenance, evidence fingerprints
   SHA256SUMS        sha256 of report.md and run.json
   EVIDENCE.sha256   sha256 / size / line count of the evidence files (not in this repository)
@@ -38,7 +38,7 @@ index.json          every run's summary, regenerated from the run.json files
 SHA256SUMS          sha256 of every file in the repository
 tools/              add_run.py (record a run), verify.py (check the record), regenerate.py (rebuild the manifests),
                     build_report.py (rows → report.md + figures), run_month.py (the monthly run, end to end),
-                    monthly.json + monthly.local.example.json (its config), make_fixture.py + fixtures/ (genuine tool output for the tests), tests
+                    monthly.json + monthly.local.example.json (its config), make_fixture.py + fixtures/ (synthetic: the tool's real code over stand-in inputs, for the tests), tests
 ```
 
 A run id is the UTC date the run started, with a suffix when a chain has more than one run that day.
@@ -90,8 +90,11 @@ in `run.json` here.
    copies the report in, fingerprints the evidence, writes `run.json` + `SHA256SUMS` +
    `EVIDENCE.sha256`, and regenerates `index.json`, the table above and the root `SHA256SUMS`.
    Verdict, window, checks, budget, tool and engine versions are parsed from the report's readiness
-   screen; `--figures` attaches the generator's figures and `--meta` merges anything else (the
-   `generator` block names `tools/build_report.py`, its sha256 and the commit it ran from).
+   screen; `--figures` attaches the generator's figures and `--meta` merges build_report's own facts (the
+   `generator` block names `tools/build_report.py`, its sha256 and the commit it ran from; only the
+   keys `generator`, `rows_tool_version`, `build`, `body_archive_manifest` and `bottom_line` are taken,
+   and paths are relative). `bottom_line` in `run.json` says whether the report's bottom line is still
+   the generated one or was edited afterwards.
 3. `python3 tools/verify.py --evidence-root <dir>` then commit.
 
 A commit that only changes `tools/` has no run to add; `python3 tools/regenerate.py` rebuilds the root
@@ -156,6 +159,11 @@ passed to `git` and `gh` through the environment, never the host's global `gh` l
 is the review step: edit the bottom line if you want, re-run `add_run.py --force` so the checksums
 follow, merge. Every archive is per run and chain (`archive/bodies-<ver>/<run-id>-<chain>/`), because
 a shared manifest would change under the earlier runs' fingerprints.
+
+**Months that are not published.** Only a run that passes the gate and is merged enters the record. A
+refused, partial or thin (fewer than 500 attempted auctions) run is recorded locally with the reason in
+its `run.json` notes and is not published unless the owner decides to; a month with no run here was
+not published, not hidden. A hand-edited bottom line is marked `edited` in `run.json`.
 
 `engine_sha_cmd` is an argv list run without a shell, on the host, and is read only from the
 git-ignored overlay; as root the runner wants `--allow-root` before it runs it. `--start` must carry a

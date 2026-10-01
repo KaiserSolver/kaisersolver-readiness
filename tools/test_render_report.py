@@ -26,7 +26,7 @@ SCREEN = "====\n  READINESS — kaisersolver   [NOT READY]\n  arbitrum-one · pr
 
 @pytest.fixture(scope="module")
 def ours() -> list[dict[str, Any]]:
-    read = rows.read_jsonl([RUNS / "2026-10-01T000000Z.jsonl", RUNS / "2026-10-01T090000Z.jsonl"])
+    read = rows.read_jsonl([RUNS / "fixture-a.jsonl", RUNS / "fixture-b.jsonl"])
     windowed = rows.dedupe_in_window(read.rows, rows.Window(*PARAMS["window_full"]))
     return rebuild_state.attempted_rows(windowed.rows, PARAMS["solver"])
 
@@ -91,14 +91,14 @@ def test_top_five_excludes_artefacts(ours: list[dict[str, Any]]) -> None:
 
 def test_render_has_every_section(rep: dict[str, Any], fig: rr.PublicFigures, ours: list[dict[str, Any]]) -> None:
     text = rr.render(rep, SCREEN, fig, ours, opts())
-    assert text.startswith("# Readiness report: kaisersolver on arbitrum-one — 2026-10-01\n")
+    assert text.startswith("# Readiness report: kaisersolver on arbitrum-one — 2026-03-02\n")
     for heading in ("## Reading the verdict", "## Method notes", "## Reproduce", "**Bottom line for Arbitrum:**"):
         assert heading in text
     assert "```\n" + SCREEN + "\n```" in text  # the screen is embedded verbatim
     assert "- **Valuation artefact — auction 8339062:**" in text
     assert "- **FAIL — no transport errors:**" in text and "- **WARN — prices look plausible:**" in text
     assert "Body archive manifest" not in text  # no manifest given
-    assert "(re)started" not in text  # single launch
+    assert "The watch ran in 1 launch(es). 0 auction(s) seen more than once" in text
 
 
 def test_bottom_line_default_and_override(rep: dict[str, Any], fig: rr.PublicFigures, ours: list[dict[str, Any]]) -> None:
@@ -112,7 +112,8 @@ def test_method_notes_disclose_restarts_and_version_drift(
     rep: dict[str, Any], fig: rr.PublicFigures, ours: list[dict[str, Any]]
 ) -> None:
     text = rr.render(rep, SCREEN, fig, ours, opts(launches=2, duplicates=4, overlap_blocks=18201, rows_tool_version="0.11.2"))
-    assert "- The watch was (re)started 2 times; 4 auction(s) replayed twice keep their first replay, and 18201 block(s)" in text
+    assert "- The watch ran in 2 launch(es). 4 auction(s) seen more than once keep their first replay; " in text
+    assert "18201 block(s) were scanned more than once" in text
     assert (
         "- The rows were produced by cow-backtester 0.11.2; the verdict and screen come from `readiness_report` of 0.11.3" in text
     )
@@ -139,3 +140,10 @@ def test_verdict_tail_shapes() -> None:
     assert rr.verdict_tail(ok) == "every check passed"
     assert rr.verdict_tail(warn) == "no failing check; 1 warn-level: b"
     assert rr.verdict_tail(fail) == "1 failing: c; 1 warn-level: b"
+
+
+def test_own_wins_without_an_address_is_not_a_zero(rep: dict[str, Any], ours: list[dict[str, Any]]) -> None:
+    fig_none = rr.figures(rep, ours, PARAMS["solver"], [])
+    assert fig_none.own_wins is None
+    text = rr.render(rep, SCREEN, fig_none, ours, opts())
+    assert "- **Own wins:** not configured" in text and "Own wins:** 0 of" not in text

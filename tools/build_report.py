@@ -3,7 +3,7 @@
 
     tools/build_report.py --chain base --from-block 51300926 --to-block 51336483 \\
         --rows evidence/runs/base/2026-09-14.jsonl --rows evidence/runs/base/2026-09-14T143134Z.jsonl \\
-        --compete --solver-url http://127.0.0.1:11090/prod/base --engine-sha e777ab394 \\
+        --compete --solver-url http://HOST:PORT/prod/base --engine-sha e777ab394 \\
         --own-address 0x... --manifest evidence/archive/bodies-0.11/manifest.jsonl --out-dir build/base
 
 Reads every row of the run (one per auction id, the first replay wins), keeps the block
@@ -223,11 +223,14 @@ def report_options(a: argparse.Namespace, inp: Inputs) -> render_report.ReportOp
         manifest=render_report.ManifestFacts.read(a.manifest) if a.manifest else None,
         duplicates=inp.windowed.duplicates,
         overlap_blocks=inp.cycles.overlap_blocks,
+        dropped_cycles=inp.cycles.dropped_contained,
         launches=len(inp.read.files) - len(inp.read.empty_files),
     )
 
 
-def build_meta(a: argparse.Namespace, inp: Inputs, opts: render_report.ReportOptions) -> dict[str, Any]:
+def build_meta(
+    a: argparse.Namespace, inp: Inputs, opts: render_report.ReportOptions, rep: dict[str, Any], fig: render_report.PublicFigures
+) -> dict[str, Any]:
     meta: dict[str, Any] = {
         "generator": generator_block(a.record_root),
         "rows_tool_version": inp.facts.tool_version,
@@ -240,13 +243,22 @@ def build_meta(a: argparse.Namespace, inp: Inputs, opts: render_report.ReportOpt
             "unplaced": inp.windowed.unplaced,
             "cycles": len(inp.cycles.kept),
             "cycles_dropped_contained": inp.cycles.dropped_contained,
+            "window": [inp.window.lo, inp.window.hi],
             "overlap_blocks": inp.cycles.overlap_blocks,
-            "bad_lines": [asdict(b) for b in inp.read.bad_lines],
+            "bad_lines": [dict(asdict(b), path=Path(b.path).name) for b in inp.read.bad_lines],
             "empty_files": [Path(p).name for p in inp.read.empty_files],
         },
     }
+    meta["bottom_line"] = "edited" if a.bottom_line else "generated"
+    meta["bottom_line_generated_sha256"] = hashlib.sha256(
+        render_report.generated_bottom_line(rep, fig, opts).encode()
+    ).hexdigest()
     if opts.manifest and a.manifest:
-        meta["body_archive_manifest"] = {"sha256": opts.manifest.sha256, "lines": opts.manifest.lines, "path": str(a.manifest)}
+        meta["body_archive_manifest"] = {
+            "sha256": opts.manifest.sha256,
+            "lines": opts.manifest.lines,
+            "path": f"<archive>/{Path(a.manifest).name}",
+        }
     return meta
 
 
@@ -278,7 +290,7 @@ def build(argv: list[str] | None = None) -> int:
     ours = rebuild_state.attempted_rows(inp.windowed.rows, a.solver_name)
     fig = render_report.figures(rep, ours, a.solver_name, a.own_address)
     opts = report_options(a, inp)
-    write_outputs(a.out_dir, render_report.render(rep, screen, fig, ours, opts), fig, rep, build_meta(a, inp, opts))
+    write_outputs(a.out_dir, render_report.render(rep, screen, fig, ours, opts), fig, rep, build_meta(a, inp, opts, rep, fig))
     print(
         json.dumps(
             {

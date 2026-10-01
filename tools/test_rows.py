@@ -1,4 +1,4 @@
-"""Offline tests for rows.py against tools/fixtures/monthly (genuine tool output, see make_fixture.py)."""
+"""Offline tests for rows.py against tools/fixtures/monthly (synthetic tool output, see make_fixture.py)."""
 
 from __future__ import annotations
 
@@ -14,7 +14,7 @@ import rows  # noqa: E402
 
 FIX = HERE / "fixtures" / "monthly"
 RUNS = FIX / "runs" / "arbitrum-one"
-FILE1, FILE2, EMPTY = RUNS / "2026-10-01T000000Z.jsonl", RUNS / "2026-10-01T090000Z.jsonl", RUNS / "empty.jsonl"
+FILE1, FILE2, EMPTY = RUNS / "fixture-a.jsonl", RUNS / "fixture-b.jsonl", RUNS / "empty.jsonl"
 PARAMS = json.loads((FIX / "fixture.json").read_text())
 
 
@@ -66,7 +66,7 @@ def test_rows_without_settlement_block_are_reported_not_dropped_silently() -> No
 def test_empty_file_contributes_nothing_and_is_listed() -> None:
     res = rows.read_jsonl([EMPTY, FILE1])
     assert res.empty_files == [str(EMPTY)]
-    assert res.metas_by_file[1] == [] and len(res.metas_by_file[0]) == 3  # sorted: 2026-… before empty
+    assert res.metas_by_file[0] == [] and len(res.metas_by_file[1]) == 3  # sorted by name: empty.jsonl first
     assert len(res.rows) == 34
 
 

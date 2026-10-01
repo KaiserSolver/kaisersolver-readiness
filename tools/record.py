@@ -1,7 +1,7 @@
 """Shared code for the kaisersolver readiness record.
 
 A run lives at runs/<chain>/<run-id>/ and holds:
-  report.md        the public readiness report, byte-for-byte as published
+  report.md        the public readiness report, copied in unchanged
   run.json         the structured record: window, verdict, checks, tool and
                    engine versions, provenance, and the evidence fingerprints
   SHA256SUMS       sha256 of report.md and run.json (`sha256sum -c SHA256SUMS`)
@@ -68,6 +68,10 @@ def _split_check(level: str, rest: str) -> dict:
         label, detail = field, rest[_CHECK_LABEL_WIDTH + 1:]
     else:
         parts = _CHECK_SPLIT_RE.split(rest, maxsplit=1)
+        if len(parts) < 2 and len(rest) > _CHECK_LABEL_WIDTH:
+            # A label wider than the field leaves one space before its detail: the split is
+            # ambiguous, so refuse to record a guess.
+            raise ValueError(f"cannot split check line (label wider than {_CHECK_LABEL_WIDTH} columns?): {rest!r}")
         label, detail = parts[0], parts[1] if len(parts) > 1 else ""
     return {"level": level.lower(), "label": label.strip(), "detail": detail.strip()}
 

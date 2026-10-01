@@ -29,7 +29,7 @@ import run_month  # noqa: E402
 
 FIX = HERE / "fixtures" / "monthly"
 RUNS = FIX / "runs" / "arbitrum-one"
-FILE1, FILE2 = RUNS / "2026-10-01T000000Z.jsonl", RUNS / "2026-10-01T090000Z.jsonl"
+FILE1, FILE2 = RUNS / "fixture-a.jsonl", RUNS / "fixture-b.jsonl"
 PARAMS = json.loads((FIX / "fixture.json").read_text())
 T0 = 1_790_812_800.0  # 2026-10-01T00:00:00Z
 GIB = 2**30
@@ -330,8 +330,8 @@ def test_tools_drift_and_leftover_branch_are_refused(world: dict[str, Path]) -> 
 def test_skip_run_without_state_rebuilds_from_the_day_glob(world: dict[str, Path], capsys: pytest.CaptureFixture[str]) -> None:
     dst = world["evidence"] / "runs" / "arbitrum-one"
     dst.mkdir(parents=True)
-    shutil.copyfile(FILE1, dst / FILE1.name)
-    shutil.copyfile(FILE2, dst / FILE2.name)
+    shutil.copyfile(FILE1, dst / "2026-10-01T000000Z.jsonl")
+    shutil.copyfile(FILE2, dst / "2026-10-01T090000Z.jsonl")
     shell = shell_for(world, [])
     assert run_month.main(argv(world, "--skip-run", "--run-id", "2026-10-01"), shell=shell) == 0
     assert shell.watches == [] and shell.probes == []

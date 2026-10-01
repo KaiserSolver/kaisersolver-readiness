@@ -17,7 +17,7 @@ import rows  # noqa: E402
 
 FIX = HERE / "fixtures" / "monthly"
 RUNS = FIX / "runs" / "arbitrum-one"
-FILE1, FILE2 = RUNS / "2026-10-01T000000Z.jsonl", RUNS / "2026-10-01T090000Z.jsonl"
+FILE1, FILE2 = RUNS / "fixture-a.jsonl", RUNS / "fixture-b.jsonl"
 PARAMS = json.loads((FIX / "fixture.json").read_text())
 SOLVER = PARAMS["solver"]
 # what readiness_report reads (rank_* / econ_rows are for the scorecard and the tool's own rows)

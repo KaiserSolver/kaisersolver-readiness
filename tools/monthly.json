@@ -24,7 +24,9 @@
     },
     "base": {
       "solver_url": null,
-      "own_addresses": [],
+      "own_addresses": [
+        "0x4c7bdd2d75050c4fdb84ad47dd328dc5c07d7743"
+      ],
       "rpc_env": "READINESS_RPC_BASE",
       "engine_sha_cmd": null,
       "watch_seconds": 60,
