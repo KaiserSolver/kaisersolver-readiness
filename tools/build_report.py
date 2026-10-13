@@ -6,7 +6,7 @@
         --compete --solver-url http://HOST:PORT/prod/base --engine-sha e777ab394 \\
         --own-address 0x... --manifest evidence/archive/bodies-0.11/manifest.jsonl --out-dir build/base
 
-Reads every row of the run (one per auction id, the first replay wins), keeps the block
+Reads every row of the run (one per auction id, the first replay wins unless --keep last), keeps the block
 window, rebuilds the counters `process_window` accrues and runs the tool's own
 `readiness_report()` over them, then renders `report.md` in the published shape plus
 `figures.json` (for `add_run.py --figures`), `meta.json` (for `add_run.py --meta`) and
@@ -43,7 +43,7 @@ except ImportError as e:  # the pure modules above stay importable without the t
 DEFAULT_SOLVER = "kaisersolver"
 ENGINE_SHA_RE = re.compile(r"^[0-9a-f]{7,40}$")  # what record.py's _TOOL_RE accepts
 GENERATOR_DESCRIPTION = (
-    "tools/build_report.py over every --json-out file of the run, one row per auction id (first replay kept), "
+    "tools/build_report.py over every --json-out file of the run, one row per auction id ({keep} replay kept), "
     "restricted to the cycle window, re-running the tool's own readiness_report() over the cumulative counters"
 )
 
@@ -95,6 +95,12 @@ def build_parser() -> argparse.ArgumentParser:
         type=int,
         default=None,
         help="override the tool's 500-auction floor (the published runs use the default)",
+    )
+    ap.add_argument(
+        "--keep",
+        choices=rowsmod.KEEP_RULES,
+        default="first",
+        help="which replay of an auction seen more than once is kept (the 2026-09-14 reports kept the last)",
     )
     ap.add_argument("--watch-seconds", type=int, default=60, help="the --watch interval the run used (prose)")
     ap.add_argument("--instance-note", default=None, help="prose: what served the replay")
@@ -148,7 +154,7 @@ def run_readiness(st: dict[str, Any], args: ReadinessArgs) -> tuple[dict[str, An
     return reps[0], buf.getvalue().strip("\n")
 
 
-def generator_block(record_root: Path) -> dict[str, Any]:
+def generator_block(record_root: Path, keep: str = "first") -> dict[str, Any]:
     me = Path(__file__).resolve()
     try:
         commit: str | None = subprocess.run(
@@ -158,7 +164,7 @@ def generator_block(record_root: Path) -> dict[str, Any]:
         warn(f"cannot read the record repo's commit at {record_root}: {e}")
         commit = None
     return {
-        "description": GENERATOR_DESCRIPTION,
+        "description": GENERATOR_DESCRIPTION.format(keep=keep),
         "path": "tools/build_report.py",
         "sha256": hashlib.sha256(me.read_bytes()).hexdigest(),
         "commit": commit,
@@ -187,7 +193,7 @@ def load_inputs(a: argparse.Namespace) -> Inputs:
     if not read.rows:
         raise SystemExit("no rows in the given files")
     window = rowsmod.Window(a.from_block, a.to_block)
-    windowed = rowsmod.dedupe_in_window(read.rows, window)
+    windowed = rowsmod.dedupe_in_window(read.rows, window, a.keep)
     if windowed.unplaced:
         warn(f"{windowed.unplaced} row(s) carry no integer settlement_block and cannot be windowed")
     if not windowed.rows:
@@ -225,6 +231,7 @@ def report_options(a: argparse.Namespace, inp: Inputs) -> render_report.ReportOp
         overlap_blocks=inp.cycles.overlap_blocks,
         dropped_cycles=inp.cycles.dropped_contained,
         launches=len(inp.read.files) - len(inp.read.empty_files),
+        keep=a.keep,
     )
 
 
@@ -232,7 +239,7 @@ def build_meta(
     a: argparse.Namespace, inp: Inputs, opts: render_report.ReportOptions, rep: dict[str, Any], fig: render_report.PublicFigures
 ) -> dict[str, Any]:
     meta: dict[str, Any] = {
-        "generator": generator_block(a.record_root),
+        "generator": generator_block(a.record_root, a.keep),
         "rows_tool_version": inp.facts.tool_version,
         "build": {
             "files": [Path(f).name for f in inp.read.files],
@@ -240,6 +247,7 @@ def build_meta(
             "rows_read": len(inp.read.rows),
             "rows_in_window": len(inp.windowed.rows),
             "duplicates": inp.windowed.duplicates,
+            "keep": a.keep,
             "unplaced": inp.windowed.unplaced,
             "cycles": len(inp.cycles.kept),
             "cycles_dropped_contained": inp.cycles.dropped_contained,

@@ -104,10 +104,16 @@ class WindowedRows:
     unplaced: int  # rows with no integer settlement_block; they cannot be windowed
 
 
-def dedupe_in_window(rows: Iterable[Row], w: Window) -> WindowedRows:
-    """One row per auction id whose settlement block lies in the window. The FIRST occurrence
-    wins: a restart replays the same auction again, later and with a larger lag, and the first
-    replay is what an uninterrupted run would hold."""
+KEEP_RULES = ("first", "last")
+
+
+def dedupe_in_window(rows: Iterable[Row], w: Window, keep: str = "first") -> WindowedRows:
+    """One row per auction id whose settlement block lies in the window. By default the FIRST
+    occurrence wins: a restart replays the same auction again, later and with a larger lag, and the
+    first replay is what an uninterrupted run would hold. `keep="last"` lets the latest occurrence
+    win instead, the rule the 2026-09-14 reports were generated with."""
+    if keep not in KEEP_RULES:
+        raise ValueError(f"keep must be one of {KEEP_RULES}, not {keep!r}")
     kept: dict[Any, Row] = {}
     duplicates = unplaced = 0
     for r in rows:
@@ -119,7 +125,8 @@ def dedupe_in_window(rows: Iterable[Row], w: Window) -> WindowedRows:
             continue
         if r["auction_id"] in kept:
             duplicates += 1
-            continue
+            if keep == "first":
+                continue
         kept[r["auction_id"]] = r
     ordered = sorted(kept.values(), key=lambda r: (r["settlement_block"], str(r["auction_id"])))
     return WindowedRows(ordered, duplicates, unplaced)

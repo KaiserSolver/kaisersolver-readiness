@@ -49,6 +49,22 @@ def test_dedupe_keeps_first_occurrence_and_counts_duplicates(both: rows.JsonlRea
     assert kept is first  # the earlier file's replay, not the re-scan's
 
 
+def test_dedupe_keep_last_takes_the_latest_occurrence(both: rows.JsonlRead) -> None:
+    lo, hi = PARAMS["window_full"]
+    first = rows.dedupe_in_window(both.rows, rows.Window(lo, hi))
+    res = rows.dedupe_in_window(both.rows, rows.Window(lo, hi), keep="last")
+    assert [r["auction_id"] for r in res.rows] == [r["auction_id"] for r in first.rows]
+    assert (res.duplicates, res.unplaced) == (first.duplicates, first.unplaced)
+    dup_id = next(r["auction_id"] for r in both.rows if sum(1 for x in both.rows if x["auction_id"] == r["auction_id"]) > 1)
+    last = [r for r in both.rows if r["auction_id"] == dup_id][-1]
+    assert next(r for r in res.rows if r["auction_id"] == dup_id) is last  # the 2026-09-14 reports' rule
+
+
+def test_dedupe_rejects_an_unknown_keep_rule() -> None:
+    with pytest.raises(ValueError, match="keep must be one of"):
+        rows.dedupe_in_window([], rows.Window(1, 2), keep="middle")
+
+
 def test_killed_tail_rows_fall_outside_the_window(both: rows.JsonlRead) -> None:
     lo, hi = PARAMS["window_full"]
     tail = [r for r in both.rows if r["settlement_block"] > hi]
