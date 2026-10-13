@@ -18,9 +18,12 @@ here unchanged (each `run.json` names the commit and path they came from).
 | Chain | Run | Window (blocks) | Verdict | Warns | Tool | Engine | Report sha256 | Status |
 |---|---|---|---|---|---|---|---|---|
 | arbitrum-one | [2026-09-14](runs/arbitrum-one/2026-09-14/report.md) | 505098473–505365109 | REVIEW | bid coverage, competitive vs winners, prices look plausible | 0.11.0 | `3a36e59e5` | `0f57032f1d2c` | current |
+| arbitrum-one | [2026-10-12](runs/arbitrum-one/2026-10-12/report.md) | 514106940–514272751 | REVIEW | bid coverage, prices look plausible | 0.11.2 | `571b7e8fc` | `c855216dd9cb` | current |
 | base | [2026-08-22](runs/base/2026-08-22/report.md) | 50314011–50316011 | REVIEW | competitive vs winners, prices look plausible | 0.10.0 | `bbefaf759` | `5084859d5c00` | superseded |
 | base | [2026-09-14](runs/base/2026-09-14/report.md) | 51300926–51336483 | REVIEW | bid coverage, latency headroom, prices look plausible | 0.11.0 | `e777ab394` | `a73babcbb114` | current |
+| base | [2026-10-12](runs/base/2026-10-12/report.md) | 52507014–52530697 | REVIEW | latency headroom, prices look plausible | 0.11.2 | `cf57bd616` | `33b1f50dcee8` | current |
 | bnb | [2026-09-14](runs/bnb/2026-09-14/report.md) | 121850336–122000731 | REVIEW | bid coverage, latency headroom, competitive vs winners, prices look plausible, scan coverage, field coverage | 0.11.0 | `3a36e59e5` | `60828bbd2734` | current |
+| bnb | [2026-10-12](runs/bnb/2026-10-12/report.md) | 127207259–127305544 | REVIEW | competitive vs winners, prices look plausible, field coverage | 0.11.2 | `ec1e86504` | `2e173ad33f1a` | current |
 <!-- runs:end -->
 
 Status `superseded` marks a run whose method the tool has since replaced; it stays as history and

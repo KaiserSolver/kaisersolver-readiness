@@ -30,6 +30,33 @@
    "recorded_at": "2026-09-21T09:26:52Z"
   },
   {
+   "chain": "arbitrum-one",
+   "run_id": "2026-10-12",
+   "path": "runs/arbitrum-one/2026-10-12",
+   "kind": "readiness",
+   "status": "current",
+   "verdict": "REVIEW",
+   "env": "prod",
+   "window": {
+    "from_block": 514106940,
+    "to_block": 514272751
+   },
+   "tool": {
+    "name": "cow-backtester",
+    "version": "0.11.2"
+   },
+   "engine": {
+    "build_sha": "571b7e8fc"
+   },
+   "warns": [
+    "bid coverage",
+    "prices look plausible"
+   ],
+   "fails": [],
+   "report_sha256": "c855216dd9cb587591deb4536b9854099c0fbc576352901f25c370ae08466fd6",
+   "recorded_at": "2026-10-13T10:46:27Z"
+  },
+  {
    "chain": "base",
    "run_id": "2026-08-22",
    "path": "runs/base/2026-08-22",
@@ -85,6 +112,33 @@
    "recorded_at": "2026-09-21T09:26:52Z"
   },
   {
+   "chain": "base",
+   "run_id": "2026-10-12",
+   "path": "runs/base/2026-10-12",
+   "kind": "readiness",
+   "status": "current",
+   "verdict": "REVIEW",
+   "env": "prod",
+   "window": {
+    "from_block": 52507014,
+    "to_block": 52530697
+   },
+   "tool": {
+    "name": "cow-backtester",
+    "version": "0.11.2"
+   },
+   "engine": {
+    "build_sha": "cf57bd616"
+   },
+   "warns": [
+    "latency headroom",
+    "prices look plausible"
+   ],
+   "fails": [],
+   "report_sha256": "33b1f50dcee852edbf960d8e1102cac5f4e336dfd19c2dca92ca91371074eb30",
+   "recorded_at": "2026-10-13T10:46:27Z"
+  },
+  {
    "chain": "bnb",
    "run_id": "2026-09-14",
    "path": "runs/bnb/2026-09-14",
@@ -114,6 +168,34 @@
    "fails": [],
    "report_sha256": "60828bbd2734934f81e2bcd87ed6000887d9164864718fdb37ead77ac371c2cf",
    "recorded_at": "2026-09-21T09:26:52Z"
+  },
+  {
+   "chain": "bnb",
+   "run_id": "2026-10-12",
+   "path": "runs/bnb/2026-10-12",
+   "kind": "readiness",
+   "status": "current",
+   "verdict": "REVIEW",
+   "env": "prod",
+   "window": {
+    "from_block": 127207259,
+    "to_block": 127305544
+   },
+   "tool": {
+    "name": "cow-backtester",
+    "version": "0.11.2"
+   },
+   "engine": {
+    "build_sha": "ec1e86504"
+   },
+   "warns": [
+    "competitive vs winners",
+    "prices look plausible",
+    "field coverage"
+   ],
+   "fails": [],
+   "report_sha256": "2e173ad33f1ad3f913851bbc39a9b88cd9d19161923a24799baf02ab652c3ed0",
+   "recorded_at": "2026-10-13T10:46:27Z"
   }
  ]
 }

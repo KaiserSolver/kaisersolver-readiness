@@ -1,0 +1,6 @@
+# evidence files this run was built from; paths are relative to an evidence root
+# (they are not in this repository). Check with: sha256sum -c EVIDENCE.sha256
+# runs/base/2026-10-12T121614Z.jsonl: 2905626 bytes, 1862 lines, rows
+a95246cd0c124247d209bf6e7c78b7917b6d9d619f0b338322e57262fab4f973  runs/base/2026-10-12T121614Z.jsonl
+# archive/bodies-0.11/2026-10-12-base/manifest.jsonl: 256787 bytes, 1217 lines, body-archive-manifest
+b9d3cf3a8b93d2aa0bd9cb58b76ae7c07bc927443454bfb16702f26d702751f4  archive/bodies-0.11/2026-10-12-base/manifest.jsonl
