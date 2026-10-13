@@ -1,0 +1,6 @@
+# evidence files this run was built from; paths are relative to an evidence root
+# (they are not in this repository). Check with: sha256sum -c EVIDENCE.sha256
+# runs/arbitrum-one/2026-10-12T121543Z.jsonl: 2332747 bytes, 1453 lines, rows
+bafb51ee0e3d9587fa37340e6f9ab16de21913587879ae8d2e1c81f734c52b73  runs/arbitrum-one/2026-10-12T121543Z.jsonl
+# archive/bodies-0.11/2026-10-12-arbitrum-one/manifest.jsonl: 170280 bytes, 774 lines, body-archive-manifest
+997f41b7a8ab919eb5d2edcfc856924ed470facd709e64e0184ad6ea5c11ed03  archive/bodies-0.11/2026-10-12-arbitrum-one/manifest.jsonl

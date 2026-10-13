@@ -1,0 +1,189 @@
+{
+ "schema": 1,
+ "kind": "readiness",
+ "solver": "kaisersolver",
+ "chain": "bnb",
+ "run_id": "2026-10-12",
+ "status": "current",
+ "env": "prod",
+ "verdict": "REVIEW",
+ "window": {
+  "from_block": 127207259,
+  "to_block": 127305544
+ },
+ "budget": {
+  "seconds": 2.35,
+  "source": "observed"
+ },
+ "checks": [
+  {
+   "level": "pass",
+   "label": "reached auctions",
+   "detail": "3072 auctions attempted"
+  },
+  {
+   "level": "pass",
+   "label": "no transport errors",
+   "detail": "0 transport errors"
+  },
+  {
+   "level": "pass",
+   "label": "answers reliably",
+   "detail": "100% returned a parseable response inside the budget (incl. legitimate empty solutions)"
+  },
+  {
+   "level": "pass",
+   "label": "bid coverage",
+   "detail": "58% of answered auctions carried >=1 solution"
+  },
+  {
+   "level": "pass",
+   "label": "inside the deadline",
+   "detail": "0 deadline misses"
+  },
+  {
+   "level": "pass",
+   "label": "latency headroom",
+   "detail": "p95 1098 ms of a 2350 ms budget (observed); PASS <= 0.5x, WARN <= 1x"
+  },
+  {
+   "level": "pass",
+   "label": "solutions are valid",
+   "detail": "100% of bid auctions had >=1 valid solution [feasibility+eligibility+udcp+fairness; fairness_filtered 1, zero_surplus 0, udcp 4648 checked / 0 violations]"
+  },
+  {
+   "level": "warn",
+   "label": "competitive vs winners",
+   "detail": "0% of winner surplus captured (coverage-adjusted; 0% conditional on answering; basis mix {'exact_uniform': 2885, 'mixed': 111, 'wrapper_lower_bound': 76})"
+  },
+  {
+   "level": "warn",
+   "label": "prices look plausible",
+   "detail": "115 auction(s) flagged implausible_surplus"
+  },
+  {
+   "level": "pass",
+   "label": "scan coverage",
+   "detail": "every block in the window was scanned"
+  },
+  {
+   "level": "warn",
+   "label": "field coverage",
+   "detail": "4431 settlements, 3568 auctions formed, 1403 excluded (32% of field; top reasons [('tx_uid_mismatch', 908), ('body_uid_mismatch', 494), ('rpc_fetch_failed', 1)])"
+  }
+ ],
+ "tool": {
+  "name": "cow-backtester",
+  "version": "0.11.2"
+ },
+ "engine": {
+  "build_sha": "ec1e86504"
+ },
+ "figures": {
+  "lo": 127207259,
+  "hi": 127305544,
+  "attempted": 3072,
+  "replayed": 3072,
+  "returned": 1780,
+  "valid": 1780,
+  "transport": 0,
+  "deadline_miss": 0,
+  "p50": 641,
+  "p95": 1098,
+  "budget": 2.35,
+  "valid_pct": 100.0,
+  "fair_eval": 1780,
+  "fair_filtered": 1,
+  "capture": 0.031412356167599666,
+  "capture_x": 0.031412356167599666,
+  "arte": [],
+  "own_wins": 45,
+  "perbid": 0.8635363805726324,
+  "n_perbid": 1665,
+  "flagged": 115,
+  "udcp": 4648,
+  "udcp_v": 0,
+  "verdict": "REVIEW",
+  "warns": [
+   "competitive vs winners",
+   "prices look plausible",
+   "field coverage"
+  ],
+  "span": [
+   "2026-10-12T12:01:21Z",
+   "2026-10-13T00:18:38Z"
+  ],
+  "span_h": 12.288055555555555,
+  "rate": 249.99,
+  "found": 4431,
+  "excluded": 1403,
+  "skip": {
+   "tx_uid_mismatch": 908,
+   "body_uid_mismatch": 494,
+   "rpc_fetch_failed": 1
+  },
+  "unscanned": 0,
+  "lag_med_min": 0.6
+ },
+ "generator": {
+  "description": "tools/build_report.py over every --json-out file of the run, one row per auction id (first replay kept), restricted to the cycle window, re-running the tool's own readiness_report() over the cumulative counters",
+  "path": "tools/build_report.py",
+  "sha256": "2a162f43ec6be4381c328fc21acfb550b26e73b3290b14c020f3de92c94aa853",
+  "commit": "a30b0a3c4cafc3bbaac87e4527e4c5ae3c257bf2",
+  "tool_version": "0.11.2"
+ },
+ "rows_tool_version": "0.11.2",
+ "build": {
+  "files": [
+   "2026-10-12T121614Z.jsonl"
+  ],
+  "launches": 1,
+  "rows_read": 3074,
+  "rows_in_window": 3072,
+  "duplicates": 2,
+  "keep": "first",
+  "unplaced": 0,
+  "cycles": 594,
+  "cycles_dropped_contained": 0,
+  "window": [
+   127207259,
+   127305544
+  ],
+  "overlap_blocks": 0,
+  "bad_lines": [],
+  "empty_files": []
+ },
+ "body_archive_manifest": {
+  "sha256": "1a55781c4b74d85030f2098e48b509e7ebe222c35af0407364dcb1a0af0cb518",
+  "lines": 3568,
+  "path": "<archive>/manifest.jsonl"
+ },
+ "bottom_line": "generated",
+ "notes": [
+  "Watch run 2026-10-12 12:16:14Z -> 2026-10-13 00:19:25Z in one launch (--watch 60, --workers 2), stopped between cycles once it had passed 500 attempted auctions and 12 h; reported over the run's own block window.",
+  "Replay target: the production engine, serving the CoW driver's live traffic during the run. Engine build read from its boot line; no engine restart inside the window.",
+  "Recorded with tools/add_run.py (the run was started by hand, not by tools/run_month.py); report and figures by tools/build_report.py with cow-backtester 0.11.2, the version that wrote the rows."
+ ],
+ "evidence": [
+  {
+   "path": "runs/bnb/2026-10-12T121614Z.jsonl",
+   "kind": "rows",
+   "sha256": "726ce3fc900b90437662b19dc992cd9b159acacf51412fc4d089ff68c6973679",
+   "bytes": 5551663,
+   "lines": 3668
+  },
+  {
+   "path": "archive/bodies-0.11/2026-10-12-bnb/manifest.jsonl",
+   "kind": "body-archive-manifest",
+   "sha256": "1a55781c4b74d85030f2098e48b509e7ebe222c35af0407364dcb1a0af0cb518",
+   "bytes": 756416,
+   "lines": 3568
+  }
+ ],
+ "report": {
+  "path": "report.md",
+  "sha256": "2e173ad33f1ad3f913851bbc39a9b88cd9d19161923a24799baf02ab652c3ed0",
+  "bytes": 8076
+ },
+ "recorded_at": "2026-10-13T10:46:27Z"
+}

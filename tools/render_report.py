@@ -121,6 +121,7 @@ class ReportOptions:
     overlap_blocks: int
     launches: int
     dropped_cycles: int = 0
+    keep: str = "first"
 
 
 # ------------------------------------------------------------------ small helpers
@@ -420,7 +421,7 @@ def _method_notes(fig: PublicFigures, opts: ReportOptions) -> str:
     ]
     lines.append(
         f"- The watch ran in {opts.launches} launch(es). {opts.duplicates} auction(s) seen more than once keep "
-        f"their first replay; {opts.overlap_blocks} block(s) were scanned more than once"
+        f"their {opts.keep} replay; {opts.overlap_blocks} block(s) were scanned more than once"
         + (", so the field line's settlement and auction counts include every scan" if opts.overlap_blocks else "")
         + f"; {opts.dropped_cycles} cycle(s) lay wholly inside blocks already scanned and were left out."
     )
